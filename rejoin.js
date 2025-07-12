@@ -116,50 +116,35 @@ class GameSelector {
         const pid = (await Utils.ask(rl, "🔢 Nhập Place ID: ")).trim();
         return { placeId: pid, name: "Tùy chỉnh", linkCode: null };
       }
-async chooseGame(rl) {
-  console.log("🎮 Chọn game:");
-  for (let k in this.GAMES) {
-    console.log(`${k}. ${this.GAMES[k][1]} (${this.GAMES[k][0]})`);
-  }
-
-  const ans = (await Utils.ask(rl, "Nhập số: ")).trim();
-
-  if (ans === "0") {
-    const sub = (await Utils.ask(rl, "0.1 ID thủ công | 0.2 Link private redirect: ")).trim();
-    if (sub === "1") {
-      const pid = (await Utils.ask(rl, "🔢 Nhập Place ID: ")).trim();
-      return { placeId: pid, name: "Tùy chỉnh", linkCode: null };
-    }
-    if (sub === "2") {
-      console.log("\n💡 Hướng dẫn: Copy link private server gốc từ Roblox, dán vào trình duyệt.\n→ Khi nó tự redirect sang trang có dạng 'roblox.com/games/<place-id>/<tên game>?privateServerLinkCode=<code>', hãy copy link đó rồi dán vào đây.");
-      while (true) {
-        const link = await Utils.ask(rl, "\n🔗 Dán link redirect đã chuyển hướng: ");
-        const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
-        if (!m) {
-          console.log("❌ Link không hợp lệ! Phải là dạng redirect.\n👉 VD: https://www.roblox.com/games/123456789/abc?privateServerLinkCode=abcdef");
-          continue;
+      if (sub === "2") {
+        console.log("\n💡 Hướng dẫn: Copy link private server gốc từ Roblox, dán vào trình duyệt.\n→ Khi nó tự redirect sang trang có dạng 'roblox.com/games/<place-id>/<tên game>?privateServerLinkCode=<code>', hãy copy link đó rồi dán vào đây.");
+        while (true) {
+          const link = await Utils.ask(rl, "\n🔗 Dán link redirect đã chuyển hướng: ");
+          const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
+          if (!m) {
+            console.log("❌ Link không hợp lệ! Phải là dạng redirect.\n👉 VD: https://www.roblox.com/games/123456789/abc?privateServerLinkCode=abcdef");
+            continue;
+          }
+          return {
+            placeId: m[1],
+            name: "Private Server",
+            linkCode: m[2],
+          };
         }
-        return {
-          placeId: m[1],
-          name: "Private Server",
-          linkCode: m[2],
-        };
       }
+      throw new Error("❌ Không hợp lệ!");
     }
+
+    if (this.GAMES[ans]) {
+      return {
+        placeId: this.GAMES[ans][0],
+        name: this.GAMES[ans][1],
+        linkCode: null
+      };
+    }
+
     throw new Error("❌ Không hợp lệ!");
   }
-
-  if (this.GAMES[ans]) {
-    return {
-      placeId: this.GAMES[ans][0],
-      name: this.GAMES[ans][1],
-      linkCode: null
-    };
-  }
-
-  throw new Error("❌ Không hợp lệ!");
-}
-
 }
 
 class RejoinTool {
@@ -228,7 +213,7 @@ class RejoinTool {
           msg += " (đợi thêm chút để tránh spam)";
         }
       } else {
-        msg = "✅ User online!";
+        msg = "✅ Đang trong game, không cần check placeId 🎉";
         this.joinedAt = now;
         this.hasLaunched = true;
       }
