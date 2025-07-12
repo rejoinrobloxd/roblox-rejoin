@@ -20,10 +20,10 @@ function ensurePackages() {
 // 🔐 Auto root nếu chưa root (không cài tsu, which)
 function ensureRoot() {
   try {
-    // Check root
     const uid = execSync("id -u").toString().trim();
     if (uid !== "0") {
-      const nodePath = execSync("which node").toString().trim();
+      // ⚠️ Fix: dùng absolute path nếu không có `which`
+      const nodePath = process.argv[0];
       const scriptPath = __filename;
       console.log("🔐 Cần quyền root, đang chuyển qua su...");
       execSync(`su -c "${nodePath} ${scriptPath}"`, { stdio: "inherit" });
@@ -191,6 +191,8 @@ function question(rl, msg) {
       } else {
         msg += " (đợi thêm chút để tránh spam)";
       }
+    } else if (!presence.placeId) {
+      msg = `⏳ Chưa có thông tin game (placeId=null), đợi thêm...`;
     } else if (`${presence.placeId}` !== `${game.placeId}`) {
       msg = `⚠️ Đang ở sai game (${presence.placeId})`;
 
