@@ -150,49 +150,52 @@ function question(rl, msg) {
   let joinedAt = 0;
   let hasLaunched = false;
 
-  while (true) {
-    const presence = await getPresence(userId);
-    const now = Date.now();
-    let msg = "";
+while (true) {
+  const presence = await getPresence(userId);
+  const now = Date.now();
+  let msg = "";
 
-    // 💥 DEBUG: In ra JSON response
-    console.debug("[DEBUG]", JSON.stringify(presence, null, 2));
+  // 💥 DEBUG: In ra JSON response
+  console.debug("[DEBUG]", JSON.stringify(presence, null, 2));
 
-    if (!presence) {
-      msg = "⚠️ Không lấy được trạng thái";
-    } else if (presence.userPresenceType !== 2) {
-      msg = "👋 User không online";
+  if (!presence) {
+    msg = "⚠️ Không lấy được trạng thái";
+  } else if (presence.userPresenceType !== 2) {
+    msg = "👋 User không online";
 
-      if (!hasLaunched || now - joinedAt > 30 * 1000) {
-        killApp();
-        launch(game.placeId, game.linkCode);
-        joinedAt = now;
-        hasLaunched = true;
-        msg += " → Đã mở lại game!";
-      } else {
-        msg += " (đợi thêm chút để tránh spam)";
-      }
-    } else if (`${presence.placeId}` !== `${game.placeId}`) {
-      msg = `⚠️ Đang ở sai game (${presence.placeId})`;
-
-      if (now - joinedAt > 30 * 1000) {
-        killApp();
-        launch(game.placeId, game.linkCode);
-        joinedAt = now;
-        hasLaunched = true;
-        msg += " → Rejoin lại!";
-      } else {
-        msg += " (chờ delay để tránh spam)";
-      }
-    } else {
-      msg = "✅ Đang đúng game rồi!";
+    if (!hasLaunched || now - joinedAt > 30 * 1000) {
+      killApp();
+      launch(game.placeId, game.linkCode);
       joinedAt = now;
       hasLaunched = true;
+      msg += " → Đã mở lại game!";
+    } else {
+      msg += " (đợi thêm chút để tránh spam)";
     }
+  } else if (!presence.placeId) {
+    msg = `⏳ Chưa có thông tin game (placeId=null), đợi thêm...`;
+  } else if (`${presence.placeId}` !== `${game.placeId}`) {
+    msg = `⚠️ Đang ở sai game (${presence.placeId})`;
 
-    console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
-
-    // 🕒 Luôn đợi đúng delay phút
-    await new Promise((r) => setTimeout(r, delayMs));
+    if (now - joinedAt > 30 * 1000) {
+      killApp();
+      launch(game.placeId, game.linkCode);
+      joinedAt = now;
+      hasLaunched = true;
+      msg += " → Rejoin lại!";
+    } else {
+      msg += " (chờ delay để tránh spam)";
+    }
+  } else {
+    msg = "✅ Đang đúng game rồi!";
+    joinedAt = now;
+    hasLaunched = true;
   }
+
+  console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+
+  // ⏱️ FIXED: Luôn delay đúng số phút, không spam
+  await new Promise((r) => setTimeout(r, delayMs));
+}
+
 })();
