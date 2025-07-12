@@ -113,11 +113,11 @@ async function chooseGame(rl) {
         return { placeId: match[1], name: "Private Server", linkCode: match[2] };
       }
 
-      const short = link.match(/share\?code=([\w\d]+)/);
-      if (short) {
-        const code = short[1];
-        const pid = await question(rl, "🔢 Nhập Place ID cho linkCode: ");
-        return { placeId: pid.trim(), name: "Private Server", linkCode: code };
+      const shareMatch = link.match(/share\?code=([\w\d]+)/);
+      if (shareMatch) {
+        const linkCode = shareMatch[1];
+        const pid = await question(rl, "📥 Không đọc được placeId, nhập Place ID thủ công: ");
+        return { placeId: pid.trim(), name: "Private Server", linkCode };
       }
 
       throw new Error("❌ Link không hợp lệ!");
@@ -168,6 +168,8 @@ async function chooseGame(rl) {
     const presence = await getPresence(userId);
     const now = Date.now();
     let msg = "";
+
+    console.debug("[DEBUG]", JSON.stringify(presence, null, 2));
 
     if (!presence) {
       msg = "⚠️ Không lấy được trạng thái";
