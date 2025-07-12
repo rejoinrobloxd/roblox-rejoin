@@ -207,21 +207,8 @@ class RejoinTool {
         } else {
           msg += " (đợi thêm chút để tránh spam)";
         }
-      } else if (!presence.placeId) {
-        msg = `⏳ Chưa có thông tin game (placeId=null), đợi thêm...`;
-      } else if (`${presence.placeId}` !== `${this.game.placeId}`) {
-        msg = `⚠️ Đang ở sai game (${presence.placeId})`;
-        if (now - this.joinedAt > 30000) {
-          Utils.killApp();
-          Utils.launch(this.game.placeId, this.game.linkCode);
-          this.joinedAt = now;
-          this.hasLaunched = true;
-          msg += " → Rejoin lại!";
-        } else {
-          msg += " (chờ delay để tránh spam)";
-        }
       } else {
-        msg = "✅ Đang đúng game rồi!";
+        msg = "✅ User online!";
         this.joinedAt = now;
         this.hasLaunched = true;
       }
