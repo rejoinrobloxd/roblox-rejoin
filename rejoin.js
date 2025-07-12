@@ -106,7 +106,6 @@ async function chooseGame(rl) {
       const link = await question(rl, "🔗 Dán link private server: ");
       let match = link.match(/\/games\/(\d+).*privateServerLinkCode=([\w-]+)/);
       if (!match) {
-        // Nếu là link share?code=xxx&type=Server
         const shareMatch = link.match(/share\?code=([\w\d]+).*type=Server/);
         if (!shareMatch) throw new Error("❌ Link không hợp lệ!");
         const pid = await question(rl, "🔢 Không tìm thấy Place ID, nhập thủ công: ");
