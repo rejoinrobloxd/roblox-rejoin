@@ -90,6 +90,27 @@ const GAMES = {
   "0": ["custom", "🔧 Tùy chỉnh"],
 };
 
+function question(rl, msg) {
+  return new Promise((resolve) => rl.question(msg, resolve));
+}
+
+// 🛠️ Hàm xử lý link share?code=... => trả về { placeId, linkCode }
+async function resolvePrivateLinkCode(code) {
+  try {
+    const res = await axios.get(`https://www.roblox.com/share?code=${code}&type=Server`, {
+      maxRedirects: 0,
+      validateStatus: (status) => status >= 300 && status < 400,
+    });
+    const finalUrl = res.headers.location;
+    const match = finalUrl.match(/\/games\/(\d+)/);
+    if (!match) throw new Error("Không tìm thấy placeId trong redirect");
+    return { placeId: match[1], linkCode: code };
+  } catch (err) {
+    console.error("❌ Lỗi khi resolve linkCode:", err.message);
+    throw err;
+  }
+}
+
 async function chooseGame(rl) {
   console.log("🎮 Chọn game:");
   Object.keys(GAMES).forEach((key) => {
@@ -105,23 +126,21 @@ async function chooseGame(rl) {
     } else if (sub.trim() === "2") {
       const link = await question(rl, "🔗 Dán link private server: ");
       let match = link.match(/\/games\/(\d+).*privateServerLinkCode=([\w-]+)/);
-      if (!match) {
-        const shareMatch = link.match(/share\?code=([\w\d]+).*type=Server/);
-        if (!shareMatch) throw new Error("❌ Link không hợp lệ!");
-        const pid = await question(rl, "🔢 Không tìm thấy Place ID, nhập thủ công: ");
-        return { placeId: pid.trim(), name: "Private Server", linkCode: shareMatch[1] };
+      if (match) {
+        return { placeId: match[1], name: "Private Server", linkCode: match[2] };
       }
-      return { placeId: match[1], name: "Private Server", linkCode: match[2] };
+
+      const shareMatch = link.match(/share\?code=([\w\d]+).*type=Server/);
+      if (!shareMatch) throw new Error("❌ Link không hợp lệ!");
+
+      const { placeId, linkCode } = await resolvePrivateLinkCode(shareMatch[1]);
+      return { placeId, name: "Private Server", linkCode };
     } else throw new Error("❌ Không hợp lệ");
   } else if (GAMES[ans]) {
     return { placeId: GAMES[ans][0], name: GAMES[ans][1], linkCode: null };
   } else {
     throw new Error("❌ Không hợp lệ");
   }
-}
-
-function question(rl, msg) {
-  return new Promise((resolve) => rl.question(msg, resolve));
 }
 
 (async () => {
