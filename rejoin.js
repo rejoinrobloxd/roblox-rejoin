@@ -94,23 +94,6 @@ function question(rl, msg) {
   return new Promise((resolve) => rl.question(msg, resolve));
 }
 
-// 🛠️ Hàm xử lý link share?code=... => trả về { placeId, linkCode }
-async function resolvePrivateLinkCode(code) {
-  try {
-    const res = await axios.get(`https://www.roblox.com/share?code=${code}&type=Server`, {
-      maxRedirects: 0,
-      validateStatus: (status) => status >= 300 && status < 400,
-    });
-    const finalUrl = res.headers.location;
-    const match = finalUrl.match(/\/games\/(\d+)/);
-    if (!match) throw new Error("Không tìm thấy placeId trong redirect");
-    return { placeId: match[1], linkCode: code };
-  } catch (err) {
-    console.error("❌ Lỗi khi resolve linkCode:", err.message);
-    throw err;
-  }
-}
-
 async function chooseGame(rl) {
   console.log("🎮 Chọn game:");
   Object.keys(GAMES).forEach((key) => {
@@ -130,11 +113,14 @@ async function chooseGame(rl) {
         return { placeId: match[1], name: "Private Server", linkCode: match[2] };
       }
 
-      const shareMatch = link.match(/share\?code=([\w\d]+).*type=Server/);
-      if (!shareMatch) throw new Error("❌ Link không hợp lệ!");
+      const short = link.match(/share\?code=([\w\d]+)/);
+      if (short) {
+        const code = short[1];
+        const pid = await question(rl, "🔢 Nhập Place ID cho linkCode: ");
+        return { placeId: pid.trim(), name: "Private Server", linkCode: code };
+      }
 
-      const { placeId, linkCode } = await resolvePrivateLinkCode(shareMatch[1]);
-      return { placeId, name: "Private Server", linkCode };
+      throw new Error("❌ Link không hợp lệ!");
     } else throw new Error("❌ Không hợp lệ");
   } else if (GAMES[ans]) {
     return { placeId: GAMES[ans][0], name: GAMES[ans][1], linkCode: null };
@@ -182,8 +168,6 @@ async function chooseGame(rl) {
     const presence = await getPresence(userId);
     const now = Date.now();
     let msg = "";
-
-    console.debug("[DEBUG]", JSON.stringify(presence, null, 2));
 
     if (!presence) {
       msg = "⚠️ Không lấy được trạng thái";
