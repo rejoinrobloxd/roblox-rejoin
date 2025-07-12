@@ -73,6 +73,10 @@ function launch(placeId, linkCode = null) {
   const url = linkCode
     ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
     : `roblox://placeID=${placeId}`;
+  console.log(`🚀 Đang mở: ${url}`);
+  if (linkCode) {
+    console.log(`🔗 Đã join bằng linkCode: ${linkCode}`);
+  }
   exec(`am start -a android.intent.action.VIEW -d "${url}"`);
 }
 
@@ -102,7 +106,7 @@ async function chooseGame(rl) {
       const link = await question(rl, "🔗 Dán link private server: ");
       let match = link.match(/\/games\/(\d+).*privateServerLinkCode=([\w-]+)/);
       if (!match) {
-        // Nếu là dạng share?code=...&type=Server
+        // Nếu là link share?code=xxx&type=Server
         const shareMatch = link.match(/share\?code=([\w\d]+).*type=Server/);
         if (!shareMatch) throw new Error("❌ Link không hợp lệ!");
         const pid = await question(rl, "🔢 Không tìm thấy Place ID, nhập thủ công: ");
@@ -161,7 +165,6 @@ function question(rl, msg) {
     const now = Date.now();
     let msg = "";
 
-    // DEBUG: In ra JSON response
     console.debug("[DEBUG]", JSON.stringify(presence, null, 2));
 
     if (!presence) {
@@ -199,8 +202,6 @@ function question(rl, msg) {
     }
 
     console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
-
-    
     await new Promise((r) => setTimeout(r, delayMs));
   }
 })();
