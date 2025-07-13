@@ -153,7 +153,6 @@ class RejoinTool {
     this.game = null;
     this.delayMs = 60000;
     this.hasLaunched = false;
-    this.joinedAt = 0;
   }
 
   async start() {
@@ -194,7 +193,6 @@ class RejoinTool {
   async loop() {
     while (true) {
       const presence = await this.user.getPresence();
-      const now = Date.now();
       let msg = "";
 
       console.debug("[DEBUG]", JSON.stringify(presence, null, 2));
@@ -203,18 +201,12 @@ class RejoinTool {
         msg = "⚠️ Không lấy được trạng thái";
       } else if (presence.userPresenceType !== 2) {
         msg = "👋 User không online";
-        if (!this.hasLaunched || now - this.joinedAt > 30000) {
-          Utils.killApp();
-          Utils.launch(this.game.placeId, this.game.linkCode);
-          this.joinedAt = now;
-          this.hasLaunched = true;
-          msg += " → Đã mở lại game!";
-        } else {
-          msg += " (đợi thêm chút để tránh spam)";
-        }
+        Utils.killApp();
+        Utils.launch(this.game.placeId, this.game.linkCode);
+        this.hasLaunched = true;
+        msg += " → Đã mở lại game!";
       } else {
-        msg = "✅ Đang trong game, không cần check placeId 🎉";
-        this.joinedAt = now;
+        msg = "✅ Đang trong game";
         this.hasLaunched = true;
       }
 
