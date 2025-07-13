@@ -59,7 +59,7 @@ class Utils {
   }
 
   static ask(rl, msg) {
-    return new Promise((resolve) => rl.question(msg, resolve));
+    return new Promise((r) => rl.question(msg, r));
   }
 
   static saveConfig(config) {
@@ -153,13 +153,17 @@ class GameSelector {
       if (sub === "2") {
         console.log("\n💡 Dán link redirect sau khi vào private server.");
         while (true) {
-          const link = await Utils.ask(rl, "\n🔗 Dán link redirect: ");
+          const link = await Utils.ask(rl, "\n🔗 Dán link redirect đã chuyển hướng: ");
           const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
           if (!m) {
             console.log("❌ Link không hợp lệ!");
             continue;
           }
-          return { placeId: m[1], name: "Private Server", linkCode: m[2] };
+          return {
+            placeId: m[1],
+            name: "Private Server",
+            linkCode: m[2],
+          };
         }
       }
       throw new Error("❌ Không hợp lệ!");
@@ -201,11 +205,14 @@ class RejoinTool {
 
     if (saved) {
       Utils.printConfig(saved);
-      const useOld = (await Utils.ask(rl, "📝 Dùng lại config trước đó? (y/N): "))
-        .trim()
-        .toLowerCase();
+      const useOld = (await Utils.ask(rl, "📝 Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
       if (useOld === "y") {
-        ({ username, userId, placeId, gameName, linkCode, delayMin } = saved);
+        username = saved.username;
+        userId = saved.userId;
+        placeId = saved.placeId;
+        gameName = saved.gameName;
+        linkCode = saved.linkCode;
+        delayMin = saved.delayMin;
         rl.close();
         return this.finishSetup(username, userId, placeId, gameName, linkCode, delayMin);
       }
@@ -229,7 +236,7 @@ class RejoinTool {
 
     Utils.saveConfig({
       username: username.trim(),
-      userId,
+      userId: userId,
       placeId: game.placeId,
       gameName: game.name,
       linkCode: game.linkCode,
@@ -241,7 +248,11 @@ class RejoinTool {
 
   async finishSetup(username, userId, placeId, gameName, linkCode, delayMin) {
     this.user = new RobloxUser(username, userId);
-    this.game = { placeId, name: gameName, linkCode };
+    this.game = {
+      placeId,
+      name: gameName,
+      linkCode,
+    };
     this.delayMs = Math.max(1, delayMin) * 60 * 1000;
 
     console.clear();
@@ -253,48 +264,36 @@ class RejoinTool {
 
   async loop() {
     while (true) {
-      await this.checkOnce();
-      await new Promise((r) => setTimeout(r, this.delayMs));
-      await this.debugPresence(); // in debug ngay sau delay
-    }
-  }
+      const presence = await this.user.getPresence();
+      const now = Date.now();
+      const timeStr = new Date().toLocaleTimeString();
 
-  async checkOnce() {
-    const presence = await this.user.getPresence();
-    const timeStr = new Date().toLocaleTimeString();
-    console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
+      console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
 
-    const now = Date.now();
-    let msg = "";
+      let msg = "";
 
-    if (!presence) {
-      msg = "⚠️ Không lấy được trạng thái";
-    } else if (presence.userPresenceType !== 2) {
-      console.log(`[DEBUG-OFFLINE : ${timeStr}] userPresenceType=${presence.userPresenceType}`);
-      msg = "👋 User không online";
-
-      if (!this.hasLaunched || now - this.joinedAt > 30000) {
-        Utils.killApp();
-        Utils.launch(this.game.placeId, this.game.linkCode);
+      if (!presence) {
+        msg = "⚠️ Không lấy được trạng thái";
+      } else if (presence.userPresenceType !== 2) {
+        msg = "👋 User không online";
+        if (!this.hasLaunched || now - this.joinedAt > 30000) {
+          Utils.killApp();
+          Utils.launch(this.game.placeId, this.game.linkCode);
+          this.joinedAt = now;
+          this.hasLaunched = true;
+          msg += " → Đã mở lại game!";
+        } else {
+          msg += " (đợi thêm chút để tránh spam)";
+        }
+      } else {
+        msg = "✅ Đang trong game";
         this.joinedAt = now;
         this.hasLaunched = true;
-        msg += " → Đã mở lại game!";
-      } else {
-        msg += " (đợi thêm chút để tránh spam)";
       }
-    } else {
-      msg = "✅ Đang trong game";
-      this.joinedAt = now;
-      this.hasLaunched = true;
+
+      console.log(`[${timeStr}] ${msg}`);
+      await new Promise((r) => setTimeout(r, this.delayMs));
     }
-
-    console.log(`[${timeStr}] ${msg}`);
-  }
-
-  async debugPresence() {
-    const presence = await this.user.getPresence();
-    const timeStr = new Date().toLocaleTimeString();
-    console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
   }
 }
 
