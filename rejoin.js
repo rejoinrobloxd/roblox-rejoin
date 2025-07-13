@@ -7,7 +7,13 @@ const { execSync, exec } = require("child_process");
 const path = require("path");
 const os = require("os");
 
-const CONFIG_DIR = path.join(os.homedir(), ".config", "rejoin-tool");
+// 🔧 Chuẩn hóa đường dẫn config
+const HOME_DIR =
+  process.env.HOME ||
+  process.env.USERPROFILE ||
+  "/data/data/com.termux/files/home"; // fallback cho Termux
+
+const CONFIG_DIR = path.join(HOME_DIR, ".config", "rejoin-tool");
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 
 class Utils {
@@ -66,24 +72,29 @@ class Utils {
   static saveConfig(config) {
     try {
       if (!fs.existsSync(CONFIG_DIR)) {
+        console.log(`📁 Tạo thư mục config tại: ${CONFIG_DIR}`);
         fs.mkdirSync(CONFIG_DIR, { recursive: true });
       }
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), {
-        encoding: "utf8",
-      });
-      console.log(`💾 Đã lưu config tại ${CONFIG_PATH}`);
+
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+      console.log(`✅ Đã lưu config tại: ${CONFIG_PATH}`);
     } catch (e) {
-      console.error(`❌ Không thể lưu config: ${e.message}`);
+      console.error(`❌ Ghi config FAIL: ${e.message}`);
+      console.error(`🔍 Ghi vào path: ${CONFIG_PATH}`);
     }
   }
 
   static loadConfig() {
     try {
-      if (!fs.existsSync(CONFIG_PATH)) return null;
-      const raw = fs.readFileSync(CONFIG_PATH, { encoding: "utf8" });
+      if (!fs.existsSync(CONFIG_PATH)) {
+        console.log(`ℹ️ Không tìm thấy config ở: ${CONFIG_PATH}`);
+        return null;
+      }
+      const raw = fs.readFileSync(CONFIG_PATH);
+      console.log(`✅ Đã load config từ: ${CONFIG_PATH}`);
       return JSON.parse(raw);
     } catch (e) {
-      console.error(`⚠️ Không thể load config: ${e.message}`);
+      console.error(`❌ Load config FAIL: ${e.message}`);
       return null;
     }
   }
@@ -108,7 +119,7 @@ class RobloxUser {
     try {
       const r = await axios.post("https://users.roblox.com/v1/usernames/users", {
         usernames: [this.username],
-        excludeBannedUsers: false,
+        excludeBannedUsers: false
       });
       this.userId = r.data.data?.[0]?.id || null;
       return this.userId;
@@ -121,7 +132,7 @@ class RobloxUser {
   async getPresence() {
     try {
       const r = await axios.post("https://presence.roblox.com/v1/presence/users", {
-        userIds: [this.userId],
+        userIds: [this.userId]
       });
       return r.data.userPresences?.[0];
     } catch {
@@ -139,7 +150,7 @@ class GameSelector {
       "4": ["126244816328678", "DIG"],
       "5": ["116495829188952", "Dead-Rails-Alpha"],
       "6": ["8737602449", "PLS-DONATE"],
-      "0": ["custom", "🔧 Tùy chỉnh"],
+      "0": ["custom", "🔧 Tùy chỉnh"]
     };
   }
 
@@ -180,7 +191,7 @@ class GameSelector {
       return {
         placeId: this.GAMES[ans][0],
         name: this.GAMES[ans][1],
-        linkCode: null,
+        linkCode: null
       };
     }
 
@@ -247,7 +258,7 @@ class RejoinTool {
       placeId: game.placeId,
       gameName: game.name,
       linkCode: game.linkCode,
-      delayMin,
+      delayMin
     });
 
     return this.finishSetup(username.trim(), userId, game.placeId, game.name, game.linkCode, delayMin);
@@ -258,7 +269,7 @@ class RejoinTool {
     this.game = {
       placeId,
       name: gameName,
-      linkCode,
+      linkCode
     };
     this.delayMs = Math.max(1, delayMin) * 60 * 1000;
 
@@ -274,8 +285,6 @@ class RejoinTool {
       const presence = await this.user.getPresence();
       const now = Date.now();
       let msg = "";
-
-      console.debug("[DEBUG]", JSON.stringify(presence, null, 2));
 
       if (!presence) {
         msg = "⚠️ Không lấy được trạng thái";
