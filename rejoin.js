@@ -9,14 +9,14 @@ const os = require("os");
 
 const CONFIG_PATH = path.join(__dirname, "config.json");
 
-
 class Utils {
   static ensurePackages() {
     ["axios"].forEach((pkg) => {
-      try { require.resolve(pkg); }
-      catch {
+      try {
+        require.resolve(pkg);
+      } catch {
         console.log(`📦 Đang cài package thiếu: ${pkg}`);
-        execSync(npm install ${pkg}, { stdio: "inherit" });
+        execSync(`npm install ${pkg}`, { stdio: "inherit" });
       }
     });
   }
@@ -27,7 +27,7 @@ class Utils {
       if (uid !== "0") {
         const node = execSync("which node").toString().trim();
         console.log("🔐 Cần root, chuyển qua su...");
-        execSync(su -c "${node} ${__filename}", { stdio: "inherit" });
+        execSync(`su -c "${node} ${__filename}"`, { stdio: "inherit" });
         process.exit(0);
       }
     } catch (e) {
@@ -51,23 +51,23 @@ class Utils {
 
   static launch(placeId, linkCode = null) {
     const url = linkCode
-      ? roblox://placeID=${placeId}&linkCode=${linkCode}
-      : roblox://placeID=${placeId};
-    console.log(🚀 Đang mở: ${url});
-    if (linkCode) console.log(🔗 Đã join bằng linkCode: ${linkCode});
-    exec(am start -a android.intent.action.VIEW -d "${url}");
+      ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
+      : `roblox://placeID=${placeId}`;
+    console.log(`🚀 Đang mở: ${url}`);
+    if (linkCode) console.log(`🔗 Đã join bằng linkCode: ${linkCode}`);
+    exec(`am start -a android.intent.action.VIEW -d "${url}"`);
   }
 
   static ask(rl, msg) {
-    return new Promise(r => rl.question(msg, r));
+    return new Promise((r) => rl.question(msg, r));
   }
 
   static saveConfig(config) {
     try {
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-      console.log(💾 Đã lưu config tại ${CONFIG_PATH});
+      console.log(`💾 Đã lưu config tại ${CONFIG_PATH}`);
     } catch (e) {
-      console.error(❌ Không thể lưu config: ${e.message});
+      console.error(`❌ Không thể lưu config: ${e.message}`);
     }
   }
 
@@ -83,11 +83,11 @@ class Utils {
 
   static printConfig(cfg) {
     console.log("\n📂 Cấu hình trước đó:");
-    console.log(👤 Username: ${cfg.username});
-    console.log(🆔 UserID: ${cfg.userId});
-    console.log(🎮 Game: ${cfg.gameName} (${cfg.placeId}));
-    if (cfg.linkCode) console.log(🔗 Private link code: ${cfg.linkCode});
-    console.log(⏱️ Delay: ${cfg.delayMin} phút\n);
+    console.log(`👤 Username: ${cfg.username}`);
+    console.log(`🆔 UserID: ${cfg.userId}`);
+    console.log(`🎮 Game: ${cfg.gameName} (${cfg.placeId})`);
+    if (cfg.linkCode) console.log(`🔗 Private link code: ${cfg.linkCode}`);
+    console.log(`⏱️ Delay: ${cfg.delayMin} phút\n`);
   }
 }
 
@@ -101,7 +101,7 @@ class RobloxUser {
     try {
       const r = await axios.post("https://users.roblox.com/v1/usernames/users", {
         usernames: [this.username],
-        excludeBannedUsers: false
+        excludeBannedUsers: false,
       });
       this.userId = r.data.data?.[0]?.id || null;
       return this.userId;
@@ -114,7 +114,7 @@ class RobloxUser {
   async getPresence() {
     try {
       const r = await axios.post("https://presence.roblox.com/v1/presence/users", {
-        userIds: [this.userId]
+        userIds: [this.userId],
       });
       return r.data.userPresences?.[0];
     } catch {
@@ -132,14 +132,14 @@ class GameSelector {
       "4": ["126244816328678", "DIG"],
       "5": ["116495829188952", "Dead-Rails-Alpha"],
       "6": ["8737602449", "PLS-DONATE"],
-      "0": ["custom", "🔧 Tùy chỉnh"]
+      "0": ["custom", "🔧 Tùy chỉnh"],
     };
   }
 
   async chooseGame(rl) {
     console.log("🎮 Chọn game:");
     for (let k in this.GAMES) {
-      console.log(${k}. ${this.GAMES[k][1]} (${this.GAMES[k][0]}));
+      console.log(`${k}. ${this.GAMES[k][1]} (${this.GAMES[k][0]})`);
     }
 
     const ans = (await Utils.ask(rl, "Nhập số: ")).trim();
@@ -173,7 +173,7 @@ class GameSelector {
       return {
         placeId: this.GAMES[ans][0],
         name: this.GAMES[ans][1],
-        linkCode: null
+        linkCode: null,
       };
     }
 
@@ -226,7 +226,7 @@ class RejoinTool {
       rl.close();
       return;
     }
-    console.log(✅ User ID: ${userId});
+    console.log(`✅ User ID: ${userId}`);
 
     const selector = new GameSelector();
     const game = await selector.chooseGame(rl);
@@ -240,7 +240,7 @@ class RejoinTool {
       placeId: game.placeId,
       gameName: game.name,
       linkCode: game.linkCode,
-      delayMin
+      delayMin,
     });
 
     return this.finishSetup(username.trim(), userId, game.placeId, game.name, game.linkCode, delayMin);
@@ -251,13 +251,13 @@ class RejoinTool {
     this.game = {
       placeId,
       name: gameName,
-      linkCode
+      linkCode,
     };
     this.delayMs = Math.max(1, delayMin) * 60 * 1000;
 
     console.clear();
-    console.log(👤 ${username} (🆔 ${userId}) | 🎮 ${this.game.name} (${this.game.placeId}));
-    console.log(🔁 Auto-check mỗi ${delayMin} phút);
+    console.log(`👤 ${username} (🆔 ${userId}) | 🎮 ${this.game.name} (${this.game.placeId})`);
+    console.log(`🔁 Auto-check mỗi ${delayMin} phút`);
 
     await this.loop();
   }
@@ -289,8 +289,8 @@ class RejoinTool {
         this.hasLaunched = true;
       }
 
-      console.log([${new Date().toLocaleTimeString()}] ${msg});
-      await new Promise(r => setTimeout(r, this.delayMs));
+      console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+      await new Promise((r) => setTimeout(r, this.delayMs));
     }
   }
 }
