@@ -4,8 +4,10 @@ const axios = require("axios");
 const readline = require("readline");
 const fs = require("fs");
 const { execSync, exec } = require("child_process");
+const path = require("path");
+const os = require("os");
 
-const CONFIG_PATH = "./config.json";
+const CONFIG_PATH = path.join(os.homedir(), "config.json");
 
 class Utils {
   static ensurePackages() {
@@ -60,8 +62,12 @@ class Utils {
   }
 
   static saveConfig(config) {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-    console.log("💾 Đã lưu config!");
+    try {
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+      console.log(`💾 Đã lưu config tại ${CONFIG_PATH}`);
+    } catch (e) {
+      console.error(`❌ Không thể lưu config: ${e.message}`);
+    }
   }
 
   static loadConfig() {
