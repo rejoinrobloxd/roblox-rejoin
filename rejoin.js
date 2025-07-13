@@ -2,12 +2,15 @@
 
 const axios = require("axios");
 const readline = require("readline");
+const fs = require("fs");
 const { execSync, exec } = require("child_process");
+
+const CONFIG_PATH = "./config.json";
 
 class Utils {
   static ensurePackages() {
     ["axios"].forEach((pkg) => {
-      try { require.resolve(pkg); } 
+      try { require.resolve(pkg); }
       catch {
         console.log(`📦 Đang cài package thiếu: ${pkg}`);
         execSync(`npm install ${pkg}`, { stdio: "inherit" });
@@ -55,12 +58,36 @@ class Utils {
   static ask(rl, msg) {
     return new Promise(r => rl.question(msg, r));
   }
+
+  static saveConfig(config) {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+    console.log("💾 Đã lưu config!");
+  }
+
+  static loadConfig() {
+    if (!fs.existsSync(CONFIG_PATH)) return null;
+    try {
+      const raw = fs.readFileSync(CONFIG_PATH);
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  static printConfig(cfg) {
+    console.log("\n📂 Cấu hình trước đó:");
+    console.log(`👤 Username: ${cfg.username}`);
+    console.log(`🆔 UserID: ${cfg.userId}`);
+    console.log(`🎮 Game: ${cfg.gameName} (${cfg.placeId})`);
+    if (cfg.linkCode) console.log(`🔗 Private link code: ${cfg.linkCode}`);
+    console.log(`⏱️ Delay: ${cfg.delayMin} phút\n`);
+  }
 }
 
 class RobloxUser {
-  constructor(username) {
+  constructor(username, userId = null) {
     this.username = username;
-    this.userId = null;
+    this.userId = userId;
   }
 
   async fetchUserId() {
@@ -117,12 +144,12 @@ class GameSelector {
         return { placeId: pid, name: "Tùy chỉnh", linkCode: null };
       }
       if (sub === "2") {
-        console.log("\n💡 Hướng dẫn: Copy link private server gốc từ Roblox, dán vào trình duyệt.\n→ Khi nó tự redirect sang trang có dạng 'roblox.com/games/<place-id>/<tên game>?privateServerLinkCode=<code>', hãy copy link đó rồi dán vào đây.");
+        console.log("\n💡 Hướng dẫn: Dán link redirect sau khi vào private server.");
         while (true) {
           const link = await Utils.ask(rl, "\n🔗 Dán link redirect đã chuyển hướng: ");
           const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
           if (!m) {
-            console.log("❌ Link không hợp lệ! Phải là dạng redirect.\n👉 VD: https://www.roblox.com/games/123456789/abc?privateServerLinkCode=abcdef");
+            console.log("❌ Link không hợp lệ!");
             continue;
           }
           return {
@@ -166,10 +193,27 @@ class RejoinTool {
     console.clear();
     console.log("== Rejoin Tool (Node.js version) ==");
 
-    const username = await Utils.ask(rl, "👤 Nhập username Roblox: ");
-    this.user = new RobloxUser(username.trim());
+    const saved = Utils.loadConfig();
+    let username, userId, placeId, gameName, linkCode, delayMin;
 
-    const userId = await this.user.fetchUserId();
+    if (saved) {
+      Utils.printConfig(saved);
+      const useOld = (await Utils.ask(rl, "📝 Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
+      if (useOld === "y") {
+        username = saved.username;
+        userId = saved.userId;
+        placeId = saved.placeId;
+        gameName = saved.gameName;
+        linkCode = saved.linkCode;
+        delayMin = saved.delayMin;
+        rl.close();
+        return this.finishSetup(username, userId, placeId, gameName, linkCode, delayMin);
+      }
+    }
+
+    username = await Utils.ask(rl, "👤 Nhập username Roblox: ");
+    const user = new RobloxUser(username.trim());
+    userId = await user.fetchUserId();
     if (!userId) {
       console.error("❌ Không tìm thấy user ID");
       rl.close();
@@ -178,14 +222,34 @@ class RejoinTool {
     console.log(`✅ User ID: ${userId}`);
 
     const selector = new GameSelector();
-    this.game = await selector.chooseGame(rl);
+    const game = await selector.chooseGame(rl);
 
-    const delayMin = parseInt(await Utils.ask(rl, "⏱️ Delay check (phút): "));
-    this.delayMs = Math.max(1, delayMin) * 60 * 1000;
+    delayMin = parseInt(await Utils.ask(rl, "⏱️ Delay check (phút): ")) || 1;
     rl.close();
 
+    Utils.saveConfig({
+      username: username.trim(),
+      userId: userId,
+      placeId: game.placeId,
+      gameName: game.name,
+      linkCode: game.linkCode,
+      delayMin
+    });
+
+    return this.finishSetup(username.trim(), userId, game.placeId, game.name, game.linkCode, delayMin);
+  }
+
+  async finishSetup(username, userId, placeId, gameName, linkCode, delayMin) {
+    this.user = new RobloxUser(username, userId);
+    this.game = {
+      placeId,
+      name: gameName,
+      linkCode
+    };
+    this.delayMs = Math.max(1, delayMin) * 60 * 1000;
+
     console.clear();
-    console.log(`👤 ${username} | 🎮 ${this.game.name} (${this.game.placeId})`);
+    console.log(`👤 ${username} (🆔 ${userId}) | 🎮 ${this.game.name} (${this.game.placeId})`);
     console.log(`🔁 Auto-check mỗi ${delayMin} phút`);
 
     await this.loop();
