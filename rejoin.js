@@ -151,7 +151,7 @@ class GameSelector {
         return { placeId: pid, name: "Tùy chỉnh", linkCode: null };
       }
       if (sub === "2") {
-        console.log("\n💡 Hướng dẫn: Dán link redirect sau khi vào private server.");
+        console.log("\n💡 Dán link redirect sau khi vào private server.");
         while (true) {
           const link = await Utils.ask(rl, "\n🔗 Dán link redirect đã chuyển hướng: ");
           const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
@@ -266,9 +266,11 @@ class RejoinTool {
     while (true) {
       const presence = await this.user.getPresence();
       const now = Date.now();
-      let msg = "";
+      const timeStr = new Date().toLocaleTimeString();
 
-      console.debug(`[DEBUG : ${new Date().toLocaleTimeString()}]`, JSON.stringify(presence, null, 2));
+      console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
+
+      let msg = "";
 
       if (!presence) {
         msg = "⚠️ Không lấy được trạng thái";
@@ -289,7 +291,7 @@ class RejoinTool {
         this.hasLaunched = true;
       }
 
-      console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+      console.log(`[${timeStr}] ${msg}`);
       await new Promise((r) => setTimeout(r, this.delayMs));
     }
   }
