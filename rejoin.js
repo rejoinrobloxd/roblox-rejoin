@@ -3,8 +3,12 @@
 const axios = require("axios");
 const readline = require("readline");
 const { execSync, exec } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 
 class Utils {
+  static configPath = path.join(__dirname, "config.json");
+
   static ensurePackages() {
     ["axios"].forEach((pkg) => {
       try { require.resolve(pkg); } 
@@ -54,6 +58,21 @@ class Utils {
 
   static ask(rl, msg) {
     return new Promise(r => rl.question(msg, r));
+  }
+
+  static saveConfig(data) {
+    fs.writeFileSync(this.configPath, JSON.stringify(data, null, 2));
+    console.log("💾 Đã lưu config.");
+  }
+
+  static loadConfig() {
+    if (!fs.existsSync(this.configPath)) return null;
+    try {
+      const raw = fs.readFileSync(this.configPath, "utf-8");
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -153,6 +172,7 @@ class RejoinTool {
     this.game = null;
     this.delayMs = 60000;
     this.hasLaunched = false;
+    this.joinedAt = 0;
   }
 
   async start() {
@@ -165,27 +185,56 @@ class RejoinTool {
     console.clear();
     console.log("== Rejoin Tool (Node.js version) ==");
 
-    const username = await Utils.ask(rl, "👤 Nhập username Roblox: ");
-    this.user = new RobloxUser(username.trim());
+    const prevConfig = Utils.loadConfig();
+    let useOld = false;
 
-    const userId = await this.user.fetchUserId();
-    if (!userId) {
-      console.error("❌ Không tìm thấy user ID");
-      rl.close();
-      return;
+    if (prevConfig) {
+      console.log("🗂️ Config trước đó:");
+      console.log(JSON.stringify(prevConfig, null, 2));
+      const answer = await Utils.ask(rl, "⚙️ Dùng lại config? (y/n): ");
+      useOld = answer.trim().toLowerCase() === "y";
     }
-    console.log(`✅ User ID: ${userId}`);
 
-    const selector = new GameSelector();
-    this.game = await selector.chooseGame(rl);
+    if (useOld) {
+      this.user = new RobloxUser(prevConfig.username);
+      this.game = {
+        placeId: prevConfig.placeId,
+        name: prevConfig.name || "Unknown",
+        linkCode: prevConfig.linkCode || null
+      };
+      this.delayMs = Math.max(1, prevConfig.delayMin) * 60 * 1000;
+    } else {
+      const username = await Utils.ask(rl, "👤 Nhập username Roblox: ");
+      this.user = new RobloxUser(username.trim());
 
-    const delayMin = parseInt(await Utils.ask(rl, "⏱️ Delay check (phút): "));
-    this.delayMs = Math.max(1, delayMin) * 60 * 1000;
+      const userId = await this.user.fetchUserId();
+      if (!userId) {
+        console.error("❌ Không tìm thấy user ID");
+        rl.close();
+        return;
+      }
+      console.log(`✅ User ID: ${userId}`);
+
+      const selector = new GameSelector();
+      this.game = await selector.chooseGame(rl);
+
+      const delayMin = parseInt(await Utils.ask(rl, "⏱️ Delay check (phút): "));
+      this.delayMs = Math.max(1, delayMin) * 60 * 1000;
+
+      Utils.saveConfig({
+        username: this.user.username,
+        placeId: this.game.placeId,
+        name: this.game.name,
+        linkCode: this.game.linkCode,
+        delayMin
+      });
+    }
+
     rl.close();
 
     console.clear();
-    console.log(`👤 ${username} | 🎮 ${this.game.name} (${this.game.placeId})`);
-    console.log(`🔁 Auto-check mỗi ${delayMin} phút`);
+    console.log(`👤 ${this.user.username} | 🎮 ${this.game.name} (${this.game.placeId})`);
+    console.log(`🔁 Auto-check mỗi ${this.delayMs / 60000} phút`);
 
     await this.loop();
   }
@@ -193,20 +242,25 @@ class RejoinTool {
   async loop() {
     while (true) {
       const presence = await this.user.getPresence();
+      const now = Date.now();
       let msg = "";
-
-      console.debug("[DEBUG]", JSON.stringify(presence, null, 2));
 
       if (!presence) {
         msg = "⚠️ Không lấy được trạng thái";
       } else if (presence.userPresenceType !== 2) {
         msg = "👋 User không online";
-        Utils.killApp();
-        Utils.launch(this.game.placeId, this.game.linkCode);
-        this.hasLaunched = true;
-        msg += " → Đã mở lại game!";
+        if (!this.hasLaunched) {
+          Utils.killApp();
+          Utils.launch(this.game.placeId, this.game.linkCode);
+          this.joinedAt = now;
+          this.hasLaunched = true;
+          msg += " → Đã mở lại game!";
+        } else {
+          msg += " (đang chờ check lại)";
+        }
       } else {
         msg = "✅ Đang trong game";
+        this.joinedAt = now;
         this.hasLaunched = true;
       }
 
