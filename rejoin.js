@@ -89,33 +89,78 @@ class Utils {
     if (cfg.linkCode) console.log(`🔗 Private link code: ${cfg.linkCode}`);
     console.log(`⏱️ Delay: ${cfg.delayMin} phút\n`);
   }
+
+  static getRobloxCookie() {
+    console.log("🔍 Đang lấy cookie ROBLOSECURITY...");
+    let raw;
+    try {
+      raw = execSync(
+        `cat /data/data/com.roblox.client/app_webview/Default/Cookies | strings | grep ROBLOSECURITY`
+      ).toString();
+    } catch {
+      try {
+        raw = execSync(
+          `su -c sh -c 'cat /data/data/com.roblox.client/app_webview/Default/Cookies | strings | grep ROBLOSECURITY'`
+        ).toString();
+      } catch (err) {
+        console.error("❌ Không thể đọc cookie bằng cả 2 cách.");
+        process.exit(1);
+      }
+    }
+
+    const match = raw.match(/\.ROBLOSECURITY_([^\s\/]+)/);
+    if (!match) {
+      console.error("❌ Không tìm được cookie ROBLOSECURITY!");
+      process.exit(1);
+    }
+
+    let cookieValue = match[1].trim();
+    if (!cookieValue.startsWith("_")) cookieValue = "_" + cookieValue;
+    return `.ROBLOSECURITY=${cookieValue}`;
+  }
 }
 
 class RobloxUser {
-  constructor(username, userId = null) {
+  constructor(username, userId = null, cookie = null) {
     this.username = username;
     this.userId = userId;
+    this.cookie = cookie;
   }
 
-  async fetchUserId() {
+  async fetchAuthenticatedUser() {
     try {
-      const r = await axios.post("https://users.roblox.com/v1/usernames/users", {
-        usernames: [this.username],
-        excludeBannedUsers: false,
+      const res = await axios.get("https://users.roblox.com/v1/users/authenticated", {
+        headers: {
+          Cookie: this.cookie,
+          "User-Agent": "Mozilla/5.0 (Linux; Android 10; Termux)",
+          Accept: "application/json",
+        },
       });
-      this.userId = r.data.data?.[0]?.id || null;
+
+      const { name, id } = res.data;
+      this.username = name;
+      this.userId = id;
+      console.log("✅ Lấy info thành công!");
       return this.userId;
     } catch (e) {
-      console.error("❌ Lấy userID lỗi:", e.message);
+      console.error("❌ Lỗi xác thực người dùng:", e.message);
       return null;
     }
   }
 
   async getPresence() {
     try {
-      const r = await axios.post("https://presence.roblox.com/v1/presence/users", {
-        userIds: [this.userId],
-      });
+      const r = await axios.post(
+        "https://presence.roblox.com/v1/presence/users",
+        { userIds: [this.userId] },
+        {
+          headers: {
+            Cookie: this.cookie,
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; Termux)",
+            Accept: "application/json",
+          },
+        }
+      );
       return r.data.userPresences?.[0];
     } catch {
       return null;
@@ -214,18 +259,21 @@ class RejoinTool {
         linkCode = saved.linkCode;
         delayMin = saved.delayMin;
         rl.close();
-        return this.finishSetup(username, userId, placeId, gameName, linkCode, delayMin);
+        const cookie = Utils.getRobloxCookie();
+        return this.finishSetup(username, userId, placeId, gameName, linkCode, delayMin, cookie);
       }
     }
 
-    username = await Utils.ask(rl, "👤 Nhập username Roblox: ");
-    const user = new RobloxUser(username.trim());
-    userId = await user.fetchUserId();
+    const cookie = Utils.getRobloxCookie();
+    const user = new RobloxUser(null, null, cookie);
+    userId = await user.fetchAuthenticatedUser();
     if (!userId) {
       console.error("❌ Không tìm thấy user ID");
       rl.close();
       return;
     }
+    username = user.username;
+    console.log(`✅ Username: ${username}`);
     console.log(`✅ User ID: ${userId}`);
 
     const selector = new GameSelector();
@@ -235,19 +283,19 @@ class RejoinTool {
     rl.close();
 
     Utils.saveConfig({
-      username: username.trim(),
-      userId: userId,
+      username,
+      userId,
       placeId: game.placeId,
       gameName: game.name,
       linkCode: game.linkCode,
       delayMin,
     });
 
-    return this.finishSetup(username.trim(), userId, game.placeId, game.name, game.linkCode, delayMin);
+    return this.finishSetup(username, userId, game.placeId, game.name, game.linkCode, delayMin, cookie);
   }
 
-  async finishSetup(username, userId, placeId, gameName, linkCode, delayMin) {
-    this.user = new RobloxUser(username, userId);
+  async finishSetup(username, userId, placeId, gameName, linkCode, delayMin, cookie) {
+    this.user = new RobloxUser(username, userId, cookie);
     this.game = {
       placeId,
       name: gameName,
