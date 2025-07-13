@@ -268,7 +268,7 @@ class RejoinTool {
       const now = Date.now();
       let msg = "";
 
-      console.debug("[DEBUG]", JSON.stringify(presence, null, 2));
+      console.debug(`[DEBUG : ${new Date().toLocaleTimeString()}]`, JSON.stringify(presence, null, 2));
 
       if (!presence) {
         msg = "⚠️ Không lấy được trạng thái";
