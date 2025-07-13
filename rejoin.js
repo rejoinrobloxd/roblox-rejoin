@@ -253,43 +253,48 @@ class RejoinTool {
 
   async loop() {
     while (true) {
-      // 1) Lấy presence và in debug NGAY
-      const presence = await this.user.getPresence();
-      const timeStr = new Date().toLocaleTimeString();
-      console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
+      await this.checkOnce();
+      await new Promise((r) => setTimeout(r, this.delayMs));
+      await this.debugPresence(); // in debug ngay sau delay
+    }
+  }
 
-      // 2) Xử lý logic
-      const now = Date.now();
-      let msg = "";
+  async checkOnce() {
+    const presence = await this.user.getPresence();
+    const timeStr = new Date().toLocaleTimeString();
+    console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
 
-      if (!presence) {
-        msg = "⚠️ Không lấy được trạng thái";
-      } else if (presence.userPresenceType !== 2) {
-        // In thêm debug offline trước khi kill/launch
-        console.log(`[DEBUG-OFFLINE : ${timeStr}] userPresenceType=${presence.userPresenceType}`);
-        msg = "👋 User không online";
+    const now = Date.now();
+    let msg = "";
 
-        if (!this.hasLaunched || now - this.joinedAt > 30000) {
-          Utils.killApp();
-          Utils.launch(this.game.placeId, this.game.linkCode);
-          this.joinedAt = now;
-          this.hasLaunched = true;
-          msg += " → Đã mở lại game!";
-        } else {
-          msg += " (đợi thêm chút để tránh spam)";
-        }
-      } else {
-        msg = "✅ Đang trong game";
+    if (!presence) {
+      msg = "⚠️ Không lấy được trạng thái";
+    } else if (presence.userPresenceType !== 2) {
+      console.log(`[DEBUG-OFFLINE : ${timeStr}] userPresenceType=${presence.userPresenceType}`);
+      msg = "👋 User không online";
+
+      if (!this.hasLaunched || now - this.joinedAt > 30000) {
+        Utils.killApp();
+        Utils.launch(this.game.placeId, this.game.linkCode);
         this.joinedAt = now;
         this.hasLaunched = true;
+        msg += " → Đã mở lại game!";
+      } else {
+        msg += " (đợi thêm chút để tránh spam)";
       }
-
-      // 3) In status line (với cùng timestamp)
-      console.log(`[${timeStr}] ${msg}`);
-
-      // 4) Chờ tới lần check tiếp theo
-      await new Promise((r) => setTimeout(r, this.delayMs));
+    } else {
+      msg = "✅ Đang trong game";
+      this.joinedAt = now;
+      this.hasLaunched = true;
     }
+
+    console.log(`[${timeStr}] ${msg}`);
+  }
+
+  async debugPresence() {
+    const presence = await this.user.getPresence();
+    const timeStr = new Date().toLocaleTimeString();
+    console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
   }
 }
 
