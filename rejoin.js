@@ -7,7 +7,8 @@ const { execSync, exec } = require("child_process");
 const path = require("path");
 const os = require("os");
 
-const CONFIG_PATH = path.join(os.homedir(), "config.json");
+// 💾 Đổi chỗ lưu config sang chỗ an toàn hơn
+const CONFIG_PATH = path.join(os.homedir(), ".rejoin-config.json");
 
 class Utils {
   static ensurePackages() {
