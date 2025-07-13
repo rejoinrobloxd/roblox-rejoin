@@ -96,26 +96,25 @@ class RobloxUser {
     }
   }
 
-  async getPresence() {
-    if (!this.userId) {
-      console.error("❌ userId không tồn tại.");
-      return null;
-    }
-    try {
-      const r = await axios.post("https://presence.roblox.com/v1/presence/users", {
-        userIds: [this.userId]
-      });
-      console.log("✅ Kết quả presence:", JSON.stringify(r.data, null, 2));
-      return r.data.userPresences?.[0];
-    } catch (e) {
-      if (e.response) {
-        console.error("❌ API lỗi:", e.response.status, e.response.data);
-      } else {
-        console.error("❌ Lỗi mạng:", e.message);
-      }
-      return null;
-    }
+async getPresence() {
+  if (!this.userId) {
+    console.error("❌ userId không tồn tại.");
+    return null;
   }
+  try {
+    const r = await axios.post("https://presence.roblox.com/v1/presence/users", {
+      userIds: [this.userId]
+    });
+    return r.data.userPresences?.[0];
+  } catch (e) {
+    if (e.response) {
+      console.error("❌ API lỗi:", e.response.status, e.response.data);
+    } else {
+      console.error("❌ Lỗi mạng:", e.message);
+    }
+    return null;
+  }
+}
 
 }
 
@@ -209,7 +208,7 @@ class RejoinTool {
 
     if (useOld) {
       this.user = new RobloxUser(prevConfig.username);
-      await this.user.fetchUserId(); // cần gọi để lấy userId
+      await this.user.fetchUserId(); 
       this.game = {
         placeId: prevConfig.placeId,
         name: prevConfig.name || "Không rõ",
