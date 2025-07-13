@@ -15,7 +15,7 @@ class Utils {
     ["axios"].forEach((pkg) => {
       try { require.resolve(pkg); }
       catch {
-        console.log("📦 Đang cài package thiếu: ${pkg}");
+        console.log(`📦 Đang cài package thiếu: ${pkg}`);
         execSync(npm install ${pkg}, { stdio: "inherit" });
       }
     });
