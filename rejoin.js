@@ -7,48 +7,42 @@ const { execSync, exec } = require("child_process");
 const path = require("path");
 const os = require("os");
 
-// 🔧 Chuẩn hóa đường dẫn config
-const HOME_DIR =
-  process.env.HOME ||
-  process.env.USERPROFILE ||
-  "/data/data/com.termux/files/home"; // fallback cho Termux
-
+const HOME_DIR = os.homedir(); // Termux: /data/data/com.termux/files/home
 const CONFIG_DIR = path.join(HOME_DIR, ".config", "rejoin-tool");
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 
 class Utils {
-  static ensurePackages() {
-    ["axios"].forEach((pkg) => {
-      try {
-        require.resolve(pkg);
-      } catch {
-        console.log(`📦 Đang cài package thiếu: ${pkg}`);
-        execSync(`npm install ${pkg}`, { stdio: "inherit" });
-      }
-    });
+  static ask(rl, msg) {
+    return new Promise((r) => rl.question(msg, r));
   }
 
-  static ensureRoot() {
+  static saveConfig(config) {
     try {
-      const uid = execSync("id -u").toString().trim();
-      if (uid !== "0") {
-        const node = execSync("which node").toString().trim();
-        console.log("🔐 Cần root, chuyển qua su...");
-        execSync(`su -c "${node} ${__filename}"`, { stdio: "inherit" });
-        process.exit(0);
+      if (!fs.existsSync(CONFIG_DIR)) {
+        fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        console.log(`📁 Đã tạo thư mục config: ${CONFIG_DIR}`);
       }
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+      console.log(`💾 Đã lưu config tại: ${CONFIG_PATH}`);
     } catch (e) {
-      console.error("❌ Không thể chạy root:", e.message);
-      process.exit(1);
+      console.error(`❌ Không thể lưu config: ${e.message}`);
+      console.error(`📛 Debug path: ${CONFIG_PATH}`);
     }
   }
 
-  static enableWakeLock() {
+  static loadConfig() {
     try {
-      exec("termux-wake-lock");
-      console.log("💤 Wake lock bật");
-    } catch {
-      console.warn("⚠️ Không bật wake lock");
+      if (!fs.existsSync(CONFIG_PATH)) {
+        console.log(`ℹ️ Không tìm thấy config ở: ${CONFIG_PATH}`);
+        return null;
+      }
+      const raw = fs.readFileSync(CONFIG_PATH);
+      const parsed = JSON.parse(raw);
+      console.log(`✅ Đã load config từ: ${CONFIG_PATH}`);
+      return parsed;
+    } catch (e) {
+      console.error(`❌ Lỗi đọc config: ${e.message}`);
+      return null;
     }
   }
 
@@ -61,41 +55,15 @@ class Utils {
       ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
       : `roblox://placeID=${placeId}`;
     console.log(`🚀 Đang mở: ${url}`);
-    if (linkCode) console.log(`🔗 Đã join bằng linkCode: ${linkCode}`);
     exec(`am start -a android.intent.action.VIEW -d "${url}"`);
   }
 
-  static ask(rl, msg) {
-    return new Promise((r) => rl.question(msg, r));
-  }
-
-  static saveConfig(config) {
+  static enableWakeLock() {
     try {
-      if (!fs.existsSync(CONFIG_DIR)) {
-        console.log(`📁 Tạo thư mục config tại: ${CONFIG_DIR}`);
-        fs.mkdirSync(CONFIG_DIR, { recursive: true });
-      }
-
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-      console.log(`✅ Đã lưu config tại: ${CONFIG_PATH}`);
-    } catch (e) {
-      console.error(`❌ Ghi config FAIL: ${e.message}`);
-      console.error(`🔍 Ghi vào path: ${CONFIG_PATH}`);
-    }
-  }
-
-  static loadConfig() {
-    try {
-      if (!fs.existsSync(CONFIG_PATH)) {
-        console.log(`ℹ️ Không tìm thấy config ở: ${CONFIG_PATH}`);
-        return null;
-      }
-      const raw = fs.readFileSync(CONFIG_PATH);
-      console.log(`✅ Đã load config từ: ${CONFIG_PATH}`);
-      return JSON.parse(raw);
-    } catch (e) {
-      console.error(`❌ Load config FAIL: ${e.message}`);
-      return null;
+      exec("termux-wake-lock");
+      console.log("💤 Wake lock bật");
+    } catch {
+      console.warn("⚠️ Không bật wake lock");
     }
   }
 
@@ -209,8 +177,6 @@ class RejoinTool {
   }
 
   async start() {
-    Utils.ensurePackages();
-    Utils.ensureRoot();
     Utils.enableWakeLock();
 
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -225,14 +191,15 @@ class RejoinTool {
       Utils.printConfig(saved);
       const useOld = (await Utils.ask(rl, "📝 Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
       if (useOld === "y") {
-        username = saved.username;
-        userId = saved.userId;
-        placeId = saved.placeId;
-        gameName = saved.gameName;
-        linkCode = saved.linkCode;
-        delayMin = saved.delayMin;
         rl.close();
-        return this.finishSetup(username, userId, placeId, gameName, linkCode, delayMin);
+        return this.finishSetup(
+          saved.username,
+          saved.userId,
+          saved.placeId,
+          saved.gameName,
+          saved.linkCode,
+          saved.delayMin
+        );
       }
     }
 
@@ -266,11 +233,7 @@ class RejoinTool {
 
   async finishSetup(username, userId, placeId, gameName, linkCode, delayMin) {
     this.user = new RobloxUser(username, userId);
-    this.game = {
-      placeId,
-      name: gameName,
-      linkCode
-    };
+    this.game = { placeId, name: gameName, linkCode };
     this.delayMs = Math.max(1, delayMin) * 60 * 1000;
 
     console.clear();
