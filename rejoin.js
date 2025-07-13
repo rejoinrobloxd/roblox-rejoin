@@ -277,7 +277,7 @@ class RejoinTool {
           msg += " (đợi thêm chút để tránh spam)";
         }
       } else {
-        msg = "✅ Đang trong game, không cần check placeId 🎉";
+        msg = "✅ Đang trong game";
         this.joinedAt = now;
         this.hasLaunched = true;
       }
