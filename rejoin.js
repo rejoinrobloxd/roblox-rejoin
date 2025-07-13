@@ -24,12 +24,12 @@ class Utils {
       const uid = execSync("id -u").toString().trim();
       if (uid !== "0") {
         const node = execSync("which node").toString().trim();
-        console.log("Cần root, chuyển qua su...");
+        console.log("Cần quyền root, chuyển sang su...");
         execSync(`su -c "${node} ${__filename}"`, { stdio: "inherit" });
         process.exit(0);
       }
     } catch (e) {
-      console.error("Không thể chạy root:", e.message);
+      console.error("Không thể chạy với quyền root:", e.message);
       process.exit(1);
     }
   }
@@ -37,9 +37,9 @@ class Utils {
   static enableWakeLock() {
     try {
       exec("termux-wake-lock");
-      console.log("Wake lock bật");
+      console.log("Đã bật wake lock");
     } catch {
-      console.warn("Không bật wake lock");
+      console.warn("Không bật được wake lock");
     }
   }
 
@@ -51,7 +51,6 @@ class Utils {
     const url = linkCode
       ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
       : `roblox://placeID=${placeId}`;
-    console.clear();
     console.log(`Đang mở: ${url}`);
     if (linkCode) console.log(`Đã join bằng linkCode: ${linkCode}`);
     exec(`am start -a android.intent.action.VIEW -d "${url}"`);
@@ -63,7 +62,7 @@ class Utils {
 
   static saveConfig(data) {
     fs.writeFileSync(this.configPath, JSON.stringify(data, null, 2));
-    console.log("Đã lưu config.");
+    console.log("Đã lưu cấu hình.");
   }
 
   static loadConfig() {
@@ -92,18 +91,23 @@ class RobloxUser {
       this.userId = r.data.data?.[0]?.id || null;
       return this.userId;
     } catch (e) {
-      console.error("Lấy userID lỗi:", e.message);
+      console.error("Lỗi khi lấy userID:", e.message);
       return null;
     }
   }
 
   async getPresence() {
+    if (!this.userId) {
+      console.error("Lỗi: userId không tồn tại.");
+      return null;
+    }
     try {
       const r = await axios.post("https://presence.roblox.com/v1/presence/users", {
         userIds: [this.userId]
       });
       return r.data.userPresences?.[0];
-    } catch {
+    } catch (e) {
+      console.error("Lỗi khi lấy trạng thái:", e.message);
       return null;
     }
   }
@@ -123,7 +127,8 @@ class GameSelector {
   }
 
   async chooseGame(rl) {
-    console.log("Chọn game:\n");
+    console.clear();
+    console.log("Chọn game:");
     for (let k in this.GAMES) {
       console.log(`${k}. ${this.GAMES[k][1]} (${this.GAMES[k][0]})`);
     }
@@ -137,16 +142,14 @@ class GameSelector {
         return { placeId: pid, name: "Tùy chỉnh", linkCode: null };
       }
       if (sub === "2") {
-        console.clear();
-        console.log("Hướng dẫn: Copy link private server từ Roblox và dán vào trình duyệt.");
-        console.log("→ Sau khi được redirect, copy link có dạng:");
-        console.log("  https://www.roblox.com/games/<place-id>/<tên>?privateServerLinkCode=<code>\n");
+        console.log("\nHướng dẫn: Copy link private server từ Roblox, mở bằng trình duyệt.");
+        console.log("Khi nó redirect sang trang dạng:");
+        console.log("https://www.roblox.com/games/<place-id>/<tên>?privateServerLinkCode=<code>");
         while (true) {
-          const link = await Utils.ask(rl, "Dán link redirect đã chuyển hướng: ");
+          const link = await Utils.ask(rl, "\nDán link redirect: ");
           const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
           if (!m) {
-            console.log("Link không hợp lệ! Phải là dạng redirect.");
-            console.log("Ví dụ: https://www.roblox.com/games/123456789/abc?privateServerLinkCode=abcdef\n");
+            console.log("Link không hợp lệ! Vui lòng dán đúng định dạng.");
             continue;
           }
           return {
@@ -186,16 +189,13 @@ class RejoinTool {
     Utils.enableWakeLock();
 
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
     console.clear();
-    console.log("=== REJOIN TOOL ===\n");
 
     const prevConfig = Utils.loadConfig();
     let useOld = false;
 
     if (prevConfig) {
-      console.clear();
-      console.log("Config trước đó:\n");
+      console.log("Cấu hình trước đó:");
       console.log(JSON.stringify(prevConfig, null, 2));
       const answer = await Utils.ask(rl, "Dùng lại config? (y/n): ");
       useOld = answer.trim().toLowerCase() === "y";
@@ -203,9 +203,10 @@ class RejoinTool {
 
     if (useOld) {
       this.user = new RobloxUser(prevConfig.username);
+      await this.user.fetchUserId(); // cần gọi để lấy userId
       this.game = {
         placeId: prevConfig.placeId,
-        name: prevConfig.name || "Unknown",
+        name: prevConfig.name || "Không rõ",
         linkCode: prevConfig.linkCode || null
       };
       this.delayMs = Math.max(1, prevConfig.delayMin) * 60 * 1000;
@@ -220,13 +221,12 @@ class RejoinTool {
         return;
       }
 
-      console.clear();
-      console.log(`User ID: ${userId}\n`);
+      console.log(`Đã tìm thấy User ID: ${userId}`);
 
       const selector = new GameSelector();
       this.game = await selector.chooseGame(rl);
 
-      const delayMin = parseInt(await Utils.ask(rl, "Delay check (phút): "));
+      const delayMin = parseInt(await Utils.ask(rl, "Thời gian delay kiểm tra (phút): "));
       this.delayMs = Math.max(1, delayMin) * 60 * 1000;
 
       Utils.saveConfig({
@@ -243,7 +243,7 @@ class RejoinTool {
     console.clear();
     console.log(`User: ${this.user.username}`);
     console.log(`Game: ${this.game.name} (${this.game.placeId})`);
-    console.log(`Tự động kiểm tra mỗi ${this.delayMs / 60000} phút\n`);
+    console.log(`Tự động kiểm tra mỗi ${this.delayMs / 60000} phút`);
 
     await this.loop();
   }
@@ -255,20 +255,20 @@ class RejoinTool {
       let msg = "";
 
       if (!presence) {
-        msg = "Không lấy được trạng thái";
+        msg = "Không lấy được trạng thái người dùng.";
       } else if (presence.userPresenceType !== 2) {
-        msg = "User không online";
+        msg = "Người dùng không online.";
         if (!this.hasLaunched) {
           Utils.killApp();
           Utils.launch(this.game.placeId, this.game.linkCode);
           this.joinedAt = now;
           this.hasLaunched = true;
-          msg += " → Đã mở lại game!";
+          msg += " → Đã mở lại game.";
         } else {
-          msg += " (đang chờ check lại)";
+          msg += " (chờ kiểm tra lần tiếp theo)";
         }
       } else {
-        msg = "Đang trong game";
+        msg = "Đang trong game.";
         this.joinedAt = now;
         this.hasLaunched = true;
       }
