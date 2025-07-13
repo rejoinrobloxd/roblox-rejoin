@@ -59,7 +59,7 @@ class Utils {
   }
 
   static ask(rl, msg) {
-    return new Promise((r) => rl.question(msg, r));
+    return new Promise((resolve) => rl.question(msg, resolve));
   }
 
   static saveConfig(config) {
@@ -153,17 +153,13 @@ class GameSelector {
       if (sub === "2") {
         console.log("\n💡 Dán link redirect sau khi vào private server.");
         while (true) {
-          const link = await Utils.ask(rl, "\n🔗 Dán link redirect đã chuyển hướng: ");
+          const link = await Utils.ask(rl, "\n🔗 Dán link redirect: ");
           const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
           if (!m) {
             console.log("❌ Link không hợp lệ!");
             continue;
           }
-          return {
-            placeId: m[1],
-            name: "Private Server",
-            linkCode: m[2],
-          };
+          return { placeId: m[1], name: "Private Server", linkCode: m[2] };
         }
       }
       throw new Error("❌ Không hợp lệ!");
@@ -205,14 +201,11 @@ class RejoinTool {
 
     if (saved) {
       Utils.printConfig(saved);
-      const useOld = (await Utils.ask(rl, "📝 Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
+      const useOld = (await Utils.ask(rl, "📝 Dùng lại config trước đó? (y/N): "))
+        .trim()
+        .toLowerCase();
       if (useOld === "y") {
-        username = saved.username;
-        userId = saved.userId;
-        placeId = saved.placeId;
-        gameName = saved.gameName;
-        linkCode = saved.linkCode;
-        delayMin = saved.delayMin;
+        ({ username, userId, placeId, gameName, linkCode, delayMin } = saved);
         rl.close();
         return this.finishSetup(username, userId, placeId, gameName, linkCode, delayMin);
       }
@@ -236,7 +229,7 @@ class RejoinTool {
 
     Utils.saveConfig({
       username: username.trim(),
-      userId: userId,
+      userId,
       placeId: game.placeId,
       gameName: game.name,
       linkCode: game.linkCode,
@@ -248,11 +241,7 @@ class RejoinTool {
 
   async finishSetup(username, userId, placeId, gameName, linkCode, delayMin) {
     this.user = new RobloxUser(username, userId);
-    this.game = {
-      placeId,
-      name: gameName,
-      linkCode,
-    };
+    this.game = { placeId, name: gameName, linkCode };
     this.delayMs = Math.max(1, delayMin) * 60 * 1000;
 
     console.clear();
@@ -264,18 +253,22 @@ class RejoinTool {
 
   async loop() {
     while (true) {
+      // 1) Lấy presence và in debug NGAY
       const presence = await this.user.getPresence();
-      const now = Date.now();
       const timeStr = new Date().toLocaleTimeString();
-
       console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
 
+      // 2) Xử lý logic
+      const now = Date.now();
       let msg = "";
 
       if (!presence) {
         msg = "⚠️ Không lấy được trạng thái";
       } else if (presence.userPresenceType !== 2) {
+        // In thêm debug offline trước khi kill/launch
+        console.log(`[DEBUG-OFFLINE : ${timeStr}] userPresenceType=${presence.userPresenceType}`);
         msg = "👋 User không online";
+
         if (!this.hasLaunched || now - this.joinedAt > 30000) {
           Utils.killApp();
           Utils.launch(this.game.placeId, this.game.linkCode);
@@ -291,7 +284,10 @@ class RejoinTool {
         this.hasLaunched = true;
       }
 
+      // 3) In status line (với cùng timestamp)
       console.log(`[${timeStr}] ${msg}`);
+
+      // 4) Chờ tới lần check tiếp theo
       await new Promise((r) => setTimeout(r, this.delayMs));
     }
   }
