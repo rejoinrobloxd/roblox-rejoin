@@ -322,12 +322,9 @@ async loop() {
     const now = Date.now();
     const timeStr = new Date().toLocaleTimeString();
 
-    const debugInfo = presence
-      ? util.inspect(presence, { colors: true, depth: null })
-      : "No data";
-
     let status = "";
     let info = "";
+    let shouldRejoin = false;
 
     if (!presence || presence.userPresenceType === undefined) {
       status = "❓ Không rõ";
@@ -350,6 +347,7 @@ async loop() {
     ) {
       status = "🚫 Sai map";
       info = `❌ User đang trong game nhưng sai placeId (${presence.placeId})`;
+      shouldRejoin = true;
       Utils.killApp();
       Utils.launch(this.game.placeId, this.game.linkCode);
       this.joinedAt = now;
@@ -362,22 +360,26 @@ async loop() {
       this.hasLaunched = true;
     }
 
-    // Clear bảng
+    // Clear màn hình
     console.clear();
 
-    // Extract tên package từ linkCode
-    const packageName = this.game.linkCode?.split(".").pop() || "unknown";
+    // Tính thời gian delay đếm ngược
+    let countdownSec = Math.floor(this.delayMs / 1000);
+    let countdownStr =
+      countdownSec > 60
+        ? `${Math.floor(countdownSec / 60)}m ${countdownSec % 60}s`
+        : `${countdownSec}s`;
 
-    // Bảng CLI êm mượt
+    // In bảng chính
     const table = new Table({
       head: [
-        "📦 Package",
         "👤 Username",
         "📡 Trạng thái",
         "ℹ️ Thông tin",
-        "🕒 Time"
+        "🕒 Time",
+        "⏳ Delay còn lại"
       ],
-      colWidths: [20, 18, 18, 40, 14],
+      colWidths: [20, 18, 50, 18, 20],
       wordWrap: true,
       style: {
         head: ["cyan"],
@@ -385,21 +387,18 @@ async loop() {
       }
     });
 
-    // Đẩy dữ liệu
     table.push([
-      packageName,
       this.user.username,
       status,
       info,
-      timeStr
+      timeStr,
+      countdownStr
     ]);
 
-    // In bảng
     console.log(table.toString());
 
-    // In debug JSON bên dưới
-    console.log("\n🛠 Debug JSON:");
-    console.log(debugInfo);
+    // In debug JSON rõ ràng bên dưới
+    console.log("\n🛠 Debug JSON:\n" + JSON.stringify(presence, null, 2));
 
     await new Promise((r) => setTimeout(r, this.delayMs));
   }
