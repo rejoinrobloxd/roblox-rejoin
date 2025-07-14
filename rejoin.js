@@ -375,7 +375,7 @@ async loop() {
 
     // Đếm ngược real-time
     for (let i = delaySec; i >= 0; i--) {
-      const countdownStr = i > 60
+      const countdownStr = i >= 60
         ? `${Math.floor(i / 60)}m ${i % 60}s`
         : `${i}s`;
 
