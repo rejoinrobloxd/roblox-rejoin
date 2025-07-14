@@ -321,12 +321,15 @@ class RejoinTool {
 async loop() {
   while (true) {
     const presence = await this.user.getPresence();
-    const now = Date.now();
-    const timeStr = new Date().toLocaleTimeString();
+    const delaySec = Math.floor(this.delayMs / 1000);
+    const startTime = Date.now();
 
     let status = "";
     let info = "";
     let shouldRejoin = false;
+
+    const now = Date.now();
+    const timeStr = new Date().toLocaleTimeString();
 
     if (!presence || presence.userPresenceType === undefined) {
       status = "❓ Không rõ";
@@ -362,49 +365,39 @@ async loop() {
       this.hasLaunched = true;
     }
 
-    // Clear màn hình
-    console.clear();
+    // ⏳ Đếm ngược real-time
+    for (let i = delaySec; i >= 0; i--) {
+      const countdownStr =
+        i > 60 ? `${Math.floor(i / 60)}m ${i % 60}s` : `${i}s`;
 
-    // Tính thời gian delay đếm ngược
-    let countdownSec = Math.floor(this.delayMs / 1000);
-    let countdownStr =
-      countdownSec > 60
-        ? `${Math.floor(countdownSec / 60)}m ${countdownSec % 60}s`
-        : `${countdownSec}s`;
+      // Vẽ bảng
+      console.clear();
+      const table = new Table({
+        head: ["👤 Username", "📡 Trạng thái", "ℹ️ Thông tin", "🕒 Time", "⏳ Delay còn lại"],
+        colWidths: [20, 18, 50, 18, 20],
+        wordWrap: true,
+        style: {
+          head: ["cyan"],
+          border: ["gray"]
+        }
+      });
 
-    // In bảng chính
-    const table = new Table({
-      head: [
-        "👤 Username",
-        "📡 Trạng thái",
-        "ℹ️ Thông tin",
-        "🕒 Time",
-        "⏳ Delay còn lại"
-      ],
-      colWidths: [20, 18, 50, 18, 20],
-      wordWrap: true,
-      style: {
-        head: ["cyan"],
-        border: ["gray"]
-      }
-    });
+      table.push([
+        this.user.username,
+        status,
+        info,
+        new Date().toLocaleTimeString(),
+        countdownStr
+      ]);
 
-    table.push([
-      this.user.username,
-      status,
-      info,
-      timeStr,
-      countdownStr
-    ]);
+      console.log(table.toString());
+      console.log("\n🛠 Debug JSON:\n" + JSON.stringify(presence, null, 2));
 
-    console.log(table.toString());
-
-    // In debug JSON rõ ràng bên dưới
-    console.log("\n🛠 Debug JSON:\n" + JSON.stringify(presence, null, 2));
-
-    await new Promise((r) => setTimeout(r, this.delayMs));
+      await new Promise((r) => setTimeout(r, 1000));
+    }
   }
 }
+
 }
 
 (async () => {
