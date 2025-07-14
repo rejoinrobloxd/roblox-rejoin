@@ -100,7 +100,7 @@ static ensureRoot() {
     console.log(`UserID: ${cfg.userId}`);
     console.log(`Game: ${cfg.gameName} (${cfg.placeId})`);
     if (cfg.linkCode) console.log(`Private link code: ${cfg.linkCode}`);
-    console.log(`Delay: ${cfg.delayMin} phút\n`);
+    console.log(`Delay: ${cfg.delaySec} giây\n`);
   }
 
   static getRobloxCookie() {
@@ -305,7 +305,7 @@ class RejoinTool {
       placeId: game.placeId,
       gameName: game.name,
       linkCode: game.linkCode,
-      delayMin: Math.ceil(delaySec / 60),
+      delaySec: delaySec,
     });
 
     return this.finishSetup(username, userId, game.placeId, game.name, game.linkCode, delaySec, cookie);
@@ -321,7 +321,7 @@ class RejoinTool {
     this.delayMs = Math.max(15000, delaySec * 1000);
 
     console.clear();
-    console.log(`👤 ${username} (🆔 ${userId}) | 🎮 ${this.game.name} (${this.game.placeId})`);
+    console.log(` ${username} ( ${userId}) |  ${this.game.name} (${this.game.placeId})`);
     console.log(`Auto-check mỗi ${Math.ceil(delaySec / 60)} phút`);
 
     await this.loop();
@@ -415,7 +415,7 @@ async loop() {
       ]);
 
       console.log(table.toString());
-      console.log("\n🛠 Debug JSON:\n" + JSON.stringify(presence, null, 2));
+      console.log("\nDebug JSON:\n" + JSON.stringify(presence, null, 2));
 
       await new Promise((r) => setTimeout(r, 1000));
     }
