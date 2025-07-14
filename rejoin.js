@@ -310,39 +310,47 @@ class RejoinTool {
     await this.loop();
   }
 
-  async loop() {
-    while (true) {
-      const presence = await this.user.getPresence();
-      const now = Date.now();
-      const timeStr = new Date().toLocaleTimeString();
+async loop() {
+  while (true) {
+    const presence = await this.user.getPresence();
+    const now = Date.now();
+    const timeStr = new Date().toLocaleTimeString();
 
-      console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
+    console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
 
-      let msg = "";
+    let msg = "";
 
-      if (!presence) {
-        msg = "⚠️ Không lấy được trạng thái";
-      } else if (presence.userPresenceType !== 2) {
-        msg = "👋 User không online";
-        if (!this.hasLaunched || now - this.joinedAt > 30000) {
-          Utils.killApp();
-          Utils.launch(this.game.placeId, this.game.linkCode);
-          this.joinedAt = now;
-          this.hasLaunched = true;
-          msg += " → Đã mở lại game!";
-        } else {
-          msg += " (đợi thêm chút để tránh spam)";
-        }
-      } else {
-        msg = "✅ Đang trong game";
+    if (!presence || !presence.placeId) {
+      msg = "⚠️ Không lấy được trạng thái hoặc thiếu placeId → skip";
+    } else if (presence.userPresenceType !== 2) {
+      msg = "👋 User không online";
+      if (!this.hasLaunched || now - this.joinedAt > 30000) {
+        Utils.killApp();
+        Utils.launch(this.game.placeId, this.game.linkCode);
         this.joinedAt = now;
         this.hasLaunched = true;
+        msg += " → Đã mở lại game!";
+      } else {
+        msg += " (đợi thêm chút để tránh spam)";
       }
-
-      console.log(`[${timeStr}] ${msg}`);
-      await new Promise((r) => setTimeout(r, this.delayMs));
+    } else if (presence.placeId !== this.game.placeId) {
+      msg = `❌ Đang ở sai placeId (${presence.placeId}) → cần chuyển lại`;
+      Utils.killApp();
+      Utils.launch(this.game.placeId, this.game.linkCode);
+      this.joinedAt = now;
+      this.hasLaunched = true;
+      msg += " → Đã rejoin đúng map!";
+    } else {
+      msg = "✅ User đang trong đúng game và placeId rồi nhaa 🎯";
+      this.joinedAt = now;
+      this.hasLaunched = true;
     }
+
+    console.log(`[${timeStr}] ${msg}`);
+    await new Promise((r) => setTimeout(r, this.delayMs));
   }
+}
+
 }
 
 (async () => {
