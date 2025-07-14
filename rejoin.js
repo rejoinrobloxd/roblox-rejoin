@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 const { execSync, exec } = require("child_process");
-
 function ensurePackages() {
   const requiredPackages = ["axios", "cli-table3"];
   requiredPackages.forEach((pkg) => {
@@ -29,6 +28,9 @@ const os = require("os");
 const Table = require("cli-table3");
 const CONFIG_PATH = path.join(__dirname, "config.json");
 const util = require("util");
+const figlet = require("figlet");
+const boxen = require("boxen");
+
 class Utils {
 static ensureRoot() {
   try {
@@ -318,18 +320,15 @@ class RejoinTool {
     await this.loop();
   }
 
+
 async loop() {
   while (true) {
     const presence = await this.user.getPresence();
     const delaySec = Math.floor(this.delayMs / 1000);
-    const startTime = Date.now();
 
     let status = "";
     let info = "";
-    let shouldRejoin = false;
-
     const now = Date.now();
-    const timeStr = new Date().toLocaleTimeString();
 
     if (!presence || presence.userPresenceType === undefined) {
       status = "❓ Không rõ";
@@ -352,7 +351,6 @@ async loop() {
     ) {
       status = "🚫 Sai map";
       info = `❌ User đang trong game nhưng sai placeId (${presence.placeId})`;
-      shouldRejoin = true;
       Utils.killApp();
       Utils.launch(this.game.placeId, this.game.linkCode);
       this.joinedAt = now;
@@ -365,13 +363,32 @@ async loop() {
       this.hasLaunched = true;
     }
 
-    // ⏳ Đếm ngược real-time
     for (let i = delaySec; i >= 0; i--) {
       const countdownStr =
         i > 60 ? `${Math.floor(i / 60)}m ${i % 60}s` : `${i}s`;
 
-      // Vẽ bảng
+      // ⬅️ In banner có viền khối
+      const bannerText = figlet.textSync("Dawn Rejoin", {
+        font: "Standard",
+        horizontalLayout: "default",
+        verticalLayout: "default"
+      });
+
+      const boxedBanner = boxen(bannerText, {
+        padding: 1,
+        margin: 1,
+        borderStyle: "double",
+        borderColor: "cyan",
+        align: "center"
+      });
+
+      // Clear màn hình
       console.clear();
+
+      // In banner
+      console.log(boxedBanner);
+
+      // In bảng
       const table = new Table({
         head: ["👤 Username", "📡 Trạng thái", "ℹ️ Thông tin", "🕒 Time", "⏳ Delay còn lại"],
         colWidths: [20, 18, 50, 18, 20],
@@ -397,6 +414,7 @@ async loop() {
     }
   }
 }
+
 
 }
 
