@@ -245,7 +245,6 @@ class RejoinTool {
   }
 
   async start() {
-    Utils.ensurePackages();
     Utils.ensureRoot();
     Utils.enableWakeLock();
 
