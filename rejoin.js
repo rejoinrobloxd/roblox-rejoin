@@ -362,8 +362,13 @@ async loop() {
       this.hasLaunched = true;
     }
 
+    // Clear bảng
     console.clear();
 
+    // Extract tên package từ linkCode
+    const packageName = this.game.linkCode?.split(".").pop() || "unknown";
+
+    // Bảng CLI êm mượt
     const table = new Table({
       head: [
         "📦 Package",
@@ -372,7 +377,7 @@ async loop() {
         "ℹ️ Thông tin",
         "🕒 Time"
       ],
-      colWidths: [20, 20, 20, 50, 18],
+      colWidths: [20, 18, 18, 40, 14],
       wordWrap: true,
       style: {
         head: ["cyan"],
@@ -380,19 +385,20 @@ async loop() {
       }
     });
 
+    // Đẩy dữ liệu
     table.push([
-      this.game.name,
+      packageName,
       this.user.username,
       status,
       info,
       timeStr
     ]);
 
-    // In bảng chính
+    // In bảng
     console.log(table.toString());
 
-    // In debug riêng sau bảng
-    console.log("\n🛠 DEBUG INFO:\n");
+    // In debug JSON bên dưới
+    console.log("\n🛠 Debug JSON:");
     console.log(debugInfo);
 
     await new Promise((r) => setTimeout(r, this.delayMs));
