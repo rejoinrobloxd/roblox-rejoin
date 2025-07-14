@@ -6,35 +6,41 @@ const fs = require("fs");
 const { execSync, exec } = require("child_process");
 const path = require("path");
 const os = require("os");
-
+const Table = require("cli-table3");
 const CONFIG_PATH = path.join(__dirname, "config.json");
 
 class Utils {
-  static ensurePackages() {
-    ["axios"].forEach((pkg) => {
-      try {
-        require.resolve(pkg);
-      } catch {
-        console.log(`📦 Đang cài package thiếu: ${pkg}`);
-        execSync(`npm install ${pkg}`, { stdio: "inherit" });
-      }
-    });
-  }
-
-  static ensureRoot() {
+static ensurePackages() {
+  const requiredPackages = ["axios", "cli-table3"];
+  requiredPackages.forEach((pkg) => {
     try {
-      const uid = execSync("id -u").toString().trim();
-      if (uid !== "0") {
-        const node = execSync("which node").toString().trim();
-        console.log("🔐 Cần root, chuyển qua su...");
-        execSync(`su -c "${node} ${__filename}"`, { stdio: "inherit" });
-        process.exit(0);
+      require.resolve(pkg);
+    } catch {
+      console.log(`📦 Đang cài package thiếu: ${pkg}`);
+      try {
+        execSync(`npm install ${pkg}`, { stdio: "inherit" });
+      } catch (e) {
+        console.error(`❌ Lỗi khi cài ${pkg}:`, e.message);
+        process.exit(1);
       }
-    } catch (e) {
-      console.error("❌ Không thể chạy root:", e.message);
-      process.exit(1);
     }
+  });
+}
+
+static ensureRoot() {
+  try {
+    const uid = execSync("id -u").toString().trim();
+    if (uid !== "0") {
+      const node = execSync("which node").toString().trim();
+      console.log("🔐 Cần quyền root, chuyển qua su...");
+      execSync(`su -c "${node} ${__filename}"`, { stdio: "inherit" });
+      process.exit(0);
+    }
+  } catch (e) {
+    console.error("❌ Không thể chạy với quyền root:", e.message);
+    process.exit(1);
   }
+}
 
   static enableWakeLock() {
     try {
@@ -310,14 +316,17 @@ class RejoinTool {
     await this.loop();
   }
 
+
+
 async loop() {
   while (true) {
     const presence = await this.user.getPresence();
     const now = Date.now();
     const timeStr = new Date().toLocaleTimeString();
 
-    // Debug JSON (ẩn đi nếu không cần full info)
-    const debugInfo = presence ? JSON.stringify(presence).slice(0, 100) + "..." : "No data";
+    const debugInfo = presence
+      ? JSON.stringify(presence, null, 2).slice(0, 100) + "..."
+      : "No data";
 
     let status = "";
     let info = "";
@@ -338,7 +347,10 @@ async loop() {
       } else {
         info += " (đợi thêm chút để tránh spam)";
       }
-    } else if (!presence.placeId || presence.placeId.toString() !== this.game.placeId.toString()) {
+    } else if (
+      !presence.placeId ||
+      presence.placeId.toString() !== this.game.placeId.toString()
+    ) {
       status = "🚫 Sai map";
       info = `❌ User đang trong game nhưng sai placeId (${presence.placeId})`;
       shouldRejoin = true;
@@ -354,20 +366,39 @@ async loop() {
       this.hasLaunched = true;
     }
 
-    // Clear console để bảng không bị chồng
+    // Clear terminal mỗi lần để không bị đè bảng
     console.clear();
 
-    // In dạng bảng
-    console.table([
-      {
-        "📦 Package": this.game.name,
-        "👤 Username": this.user.username,
-        "📡 Trạng thái": status,
-        "ℹ️ Thông tin": info,
-        "🛠 Debug": debugInfo,
-        "🕒 Time": timeStr
+    // Tạo bảng CLI siêu xịn
+    const table = new Table({
+      head: [
+        "📦 Package",
+        "👤 Username",
+        "📡 Trạng thái",
+        "ℹ️ Thông tin",
+        "🛠 Debug",
+        "🕒 Time"
+      ],
+      colWidths: [20, 18, 18, 36, 38, 14], // có thể chỉnh nếu cần rộng hơn
+      wordWrap: true,
+      style: {
+        head: ["cyan"],
+        border: ["gray"]
       }
+    });
+
+    // Push data
+    table.push([
+      this.game.name,
+      this.user.username,
+      status,
+      info,
+      debugInfo,
+      timeStr
     ]);
+
+    // In bảng
+    console.log(table.toString());
 
     await new Promise((r) => setTimeout(r, this.delayMs));
   }
