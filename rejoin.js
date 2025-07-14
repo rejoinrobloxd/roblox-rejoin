@@ -291,7 +291,12 @@ class RejoinTool {
     const selector = new GameSelector();
     const game = await selector.chooseGame(rl);
 
-    delayMin = parseInt(await Utils.ask(rl, "⏱️ Delay check (phút): ")) || 1;
+    let delaySec;
+    while (true) {
+      delaySec = parseInt(await Utils.ask(rl, "⏱️ Delay check (giây, 60-150): ")) || 1;
+      if (delaySec >= 60 && delaySec <= 150) break;
+      console.log("❌ Giá trị không hợp lệ! Vui lòng nhập lại.");
+    }
     rl.close();
 
     Utils.saveConfig({
@@ -300,24 +305,24 @@ class RejoinTool {
       placeId: game.placeId,
       gameName: game.name,
       linkCode: game.linkCode,
-      delayMin,
+      delayMin: Math.ceil(delaySec / 60),
     });
 
-    return this.finishSetup(username, userId, game.placeId, game.name, game.linkCode, delayMin, cookie);
+    return this.finishSetup(username, userId, game.placeId, game.name, game.linkCode, delaySec, cookie);
   }
 
-  async finishSetup(username, userId, placeId, gameName, linkCode, delayMin, cookie) {
+  async finishSetup(username, userId, placeId, gameName, linkCode, delaySec, cookie) {
     this.user = new RobloxUser(username, userId, cookie);
     this.game = {
       placeId,
       name: gameName,
       linkCode,
     };
-    this.delayMs = Math.max(1, delayMin) * 60 * 1000;
+    this.delayMs = Math.max(60, delaySec) * 1000;
 
     console.clear();
     console.log(`👤 ${username} (🆔 ${userId}) | 🎮 ${this.game.name} (${this.game.placeId})`);
-    console.log(`🔁 Auto-check mỗi ${delayMin} phút`);
+    console.log(`🔁 Auto-check mỗi ${Math.ceil(delaySec / 60)} phút`);
 
     await this.loop();
   }
