@@ -258,7 +258,7 @@ class RejoinTool {
     console.log("== Rejoin Tool (Node.js version) ==");
 
     const saved = Utils.loadConfig();
-    let username, userId, placeId, gameName, linkCode, delayMin;
+    let username, userId, placeId, gameName, linkCode, delaySec; // Declare delaySec here
 
     if (saved) {
       Utils.printConfig(saved);
@@ -269,10 +269,10 @@ class RejoinTool {
         placeId = saved.placeId;
         gameName = saved.gameName;
         linkCode = saved.linkCode;
-        delayMin = saved.delayMin;
+        delaySec = saved.delaySec; // Ensure delaySec is loaded from the saved config
         rl.close();
         const cookie = Utils.getRobloxCookie();
-        return this.finishSetup(username, userId, placeId, gameName, linkCode, delayMin, cookie);
+        return this.finishSetup(username, userId, placeId, gameName, linkCode, delaySec, cookie);
       }
     }
 
@@ -291,7 +291,7 @@ class RejoinTool {
     const selector = new GameSelector();
     const game = await selector.chooseGame(rl);
 
-    let delaySec;
+    
     while (true) {
       delaySec = parseInt(await Utils.ask(rl, "Delay check (giây, 15-120): ")) || 1;
       if (delaySec >= 15 && delaySec <= 120) break;
