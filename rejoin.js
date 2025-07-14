@@ -29,7 +29,8 @@ const Table = require("cli-table3");
 const CONFIG_PATH = path.join(__dirname, "config.json");
 const util = require("util");
 const figlet = require("figlet");
-const boxen = require("boxen");
+const _boxen = require("boxen");
+const boxen = _boxen.default || _boxen;
 
 
 class Utils {
@@ -328,6 +329,7 @@ async loop() {
     const presence = await this.user.getPresence();
     const delaySec = Math.floor(this.delayMs / 1000);
 
+    // Xác định status, info như mọi lần...
     let status = "";
     let info = "";
     const now = Date.now();
@@ -368,18 +370,20 @@ async loop() {
 
     // Đếm ngược real-time
     for (let i = delaySec; i >= 0; i--) {
-      const countdownStr = i > 60 ? `${Math.floor(i / 60)}m ${i % 60}s` : `${i}s`;
+      const countdownStr = i > 60
+        ? `${Math.floor(i / 60)}m ${i % 60}s`
+        : `${i}s`;
 
       console.clear();
 
-      // Tạo tiêu đề ASCII "Dawn Rejoin"
+      // Tạo tiêu đề ASCII
       const title = figlet.textSync("Dawn Rejoin", {
         font: "Standard",
         horizontalLayout: "default",
         verticalLayout: "default"
       });
 
-      // Bao viền bằng boxen
+      // Bọc viền
       const boxedTitle = boxen(title, {
         padding: 1,
         borderColor: "cyan",
@@ -389,15 +393,12 @@ async loop() {
 
       console.log(boxedTitle);
 
-      // In bảng thông tin
+      // In bảng
       const table = new Table({
-        head: ["👤 Username", "📡 Trạng thái", "ℹ️ Thông tin", "🕒 Time", "⏳ Delay còn lại"],
-        colWidths: [20, 18, 50, 18, 20],
+        head: ["👤 Username","📡 Trạng thái","ℹ️ Thông tin","🕒 Time","⏳ Delay còn lại"],
+        colWidths: [20,18,50,18,20],
         wordWrap: true,
-        style: {
-          head: ["cyan"],
-          border: ["gray"]
-        }
+        style: { head: ["cyan"], border: ["gray"] }
       });
 
       table.push([
@@ -415,7 +416,6 @@ async loop() {
     }
   }
 }
-
 
 
 }
