@@ -316,37 +316,59 @@ async loop() {
     const now = Date.now();
     const timeStr = new Date().toLocaleTimeString();
 
-    console.log(`[DEBUG : ${timeStr}]`, JSON.stringify(presence, null, 2));
+    // Debug JSON (ẩn đi nếu không cần full info)
+    const debugInfo = presence ? JSON.stringify(presence).slice(0, 100) + "..." : "No data";
 
-    let msg = "";
+    let status = "";
+    let info = "";
+    let shouldRejoin = false;
 
     if (!presence || presence.userPresenceType === undefined) {
-      msg = "⚠️ Không lấy được trạng thái hoặc thiếu placeId → skip";
+      status = "❓ Không rõ";
+      info = "⚠️ Không lấy được trạng thái hoặc thiếu placeId";
     } else if (presence.userPresenceType !== 2) {
-      msg = "👋 User không online hoặc chưa vào game";
+      status = "📴 Offline";
+      info = "👋 User không online hoặc chưa vào game";
       if (!this.hasLaunched || now - this.joinedAt > 30000) {
         Utils.killApp();
         Utils.launch(this.game.placeId, this.game.linkCode);
         this.joinedAt = now;
         this.hasLaunched = true;
-        msg += " → Đã mở lại game!";
+        info += " → Đã mở lại game!";
       } else {
-        msg += " (đợi thêm chút để tránh spam)";
+        info += " (đợi thêm chút để tránh spam)";
       }
     } else if (!presence.placeId || presence.placeId.toString() !== this.game.placeId.toString()) {
-      msg = `❌ User đang trong game nhưng sai placeId (${presence.placeId}) → rejoin`;
+      status = "🚫 Sai map";
+      info = `❌ User đang trong game nhưng sai placeId (${presence.placeId})`;
+      shouldRejoin = true;
       Utils.killApp();
       Utils.launch(this.game.placeId, this.game.linkCode);
       this.joinedAt = now;
       this.hasLaunched = true;
-      msg += " → Đã rejoin đúng map!";
+      info += " → Đã rejoin đúng map!";
     } else {
-      msg = "✅ Đang trong đúng game rồi!";
+      status = "✅ Đúng game";
+      info = "🎉 Đang trong đúng game rồi!";
       this.joinedAt = now;
       this.hasLaunched = true;
     }
 
-    console.log(`[${timeStr}] ${msg}`);
+    // Clear console để bảng không bị chồng
+    console.clear();
+
+    // In dạng bảng
+    console.table([
+      {
+        "📦 Package": this.game.name,
+        "👤 Username": this.user.username,
+        "📡 Trạng thái": status,
+        "ℹ️ Thông tin": info,
+        "🛠 Debug": debugInfo,
+        "🕒 Time": timeStr
+      }
+    ]);
+
     await new Promise((r) => setTimeout(r, this.delayMs));
   }
 }
