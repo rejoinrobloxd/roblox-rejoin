@@ -8,7 +8,7 @@ const path = require("path");
 const os = require("os");
 const Table = require("cli-table3");
 const CONFIG_PATH = path.join(__dirname, "config.json");
-
+const util = require("util");
 class Utils {
 static ensurePackages() {
   const requiredPackages = ["axios", "cli-table3"];
@@ -316,8 +316,6 @@ class RejoinTool {
     await this.loop();
   }
 
-
-
 async loop() {
   while (true) {
     const presence = await this.user.getPresence();
@@ -325,12 +323,11 @@ async loop() {
     const timeStr = new Date().toLocaleTimeString();
 
     const debugInfo = presence
-      ? JSON.stringify(presence, null, 2)
+      ? util.inspect(presence, { colors: true, depth: null })
       : "No data";
 
     let status = "";
     let info = "";
-    let shouldRejoin = false;
 
     if (!presence || presence.userPresenceType === undefined) {
       status = "❓ Không rõ";
@@ -353,7 +350,6 @@ async loop() {
     ) {
       status = "🚫 Sai map";
       info = `❌ User đang trong game nhưng sai placeId (${presence.placeId})`;
-      shouldRejoin = true;
       Utils.killApp();
       Utils.launch(this.game.placeId, this.game.linkCode);
       this.joinedAt = now;
@@ -395,14 +391,13 @@ async loop() {
     // In bảng chính
     console.log(table.toString());
 
-    // In debugInfo dạng raw JSON, rõ ràng
-    console.log("\n🛠 DEBUG INFO:");
+    // In debug riêng sau bảng
+    console.log("\n🛠 DEBUG INFO:\n");
     console.log(debugInfo);
 
     await new Promise((r) => setTimeout(r, this.delayMs));
   }
 }
-
 }
 
 (async () => {
