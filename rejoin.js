@@ -322,7 +322,6 @@ class RejoinTool {
 
     console.clear();
     console.log(` ${username} ( ${userId}) |  ${this.game.name} (${this.game.placeId})`);
-    console.log(`Auto-check mỗi ${Math.ceil(delaySec / 60)} phút`);
 
     await this.loop();
   }
@@ -351,7 +350,7 @@ async loop() {
         Utils.launch(this.game.placeId, this.game.linkCode);
         this.joinedAt = now;
         this.hasLaunched = true;
-        info += `Đã mở lại game!`;
+        info += `.Đã mở lại game!`;
       } else {
         info += ` (đợi thêm chút để tránh spam)`;
       }
@@ -367,8 +366,8 @@ async loop() {
       this.hasLaunched = true;
       info += `Đã rejoin đúng map!`;
     } else {
-      status = `Đúng game`;
-      info = `Đang trong đúng game rồi!`;
+      status = `In game`;
+      info = `Đã ở trong game.`;
       this.joinedAt = now;
       this.hasLaunched = true;
     }
