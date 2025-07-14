@@ -321,7 +321,7 @@ async loop() {
     let msg = "";
 
     if (!presence || presence.userPresenceType === undefined) {
-      msg = "⚠️ Không lấy được trạng thái → skip";
+      msg = "⚠️ Không lấy được trạng thái hoặc thiếu placeId → skip";
     } else if (presence.userPresenceType !== 2) {
       msg = "👋 User không online hoặc chưa vào game";
       if (!this.hasLaunched || now - this.joinedAt > 30000) {
@@ -333,7 +333,7 @@ async loop() {
       } else {
         msg += " (đợi thêm chút để tránh spam)";
       }
-    } else if (!presence.placeId || presence.placeId !== this.game.placeId) {
+    } else if (!presence.placeId || presence.placeId.toString() !== this.game.placeId.toString()) {
       msg = `❌ User đang trong game nhưng sai placeId (${presence.placeId}) → rejoin`;
       Utils.killApp();
       Utils.launch(this.game.placeId, this.game.linkCode);
@@ -341,7 +341,7 @@ async loop() {
       this.hasLaunched = true;
       msg += " → Đã rejoin đúng map!";
     } else {
-      msg = "✅ User đang trong đúng game và placeId rồi nhaa 🎯";
+      msg = "✅ Đang trong đúng game rồi!";
       this.joinedAt = now;
       this.hasLaunched = true;
     }
@@ -350,6 +350,7 @@ async loop() {
     await new Promise((r) => setTimeout(r, this.delayMs));
   }
 }
+
 
 
 }
