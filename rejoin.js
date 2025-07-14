@@ -6,11 +6,11 @@ function ensurePackages() {
     try {
       require.resolve(pkg);
     } catch {
-      console.log(`📦 Đang cài package thiếu: ${pkg}`);
+      console.log(`Đang cài package thiếu: ${pkg}`);
       try {
         execSync(`npm install ${pkg}`, { stdio: "inherit" });
       } catch (e) {
-        console.error(`❌ Lỗi khi cài ${pkg}:`, e.message);
+        console.error(`Lỗi khi cài ${pkg}:`, e.message);
         process.exit(1);
       }
     }
@@ -39,12 +39,12 @@ static ensureRoot() {
     const uid = execSync("id -u").toString().trim();
     if (uid !== "0") {
       const node = execSync("which node").toString().trim();
-      console.log("🔐 Cần quyền root, chuyển qua su...");
+      console.log("Cần quyền root, chuyển qua su...");
       execSync(`su -c "${node} ${__filename}"`, { stdio: "inherit" });
       process.exit(0);
     }
   } catch (e) {
-    console.error("❌ Không thể chạy với quyền root:", e.message);
+    console.error("Không thể chạy với quyền root:", e.message);
     process.exit(1);
   }
 }
@@ -52,9 +52,9 @@ static ensureRoot() {
   static enableWakeLock() {
     try {
       exec("termux-wake-lock");
-      console.log("💤 Wake lock bật");
+      console.log("Wake lock bật");
     } catch {
-      console.warn("⚠️ Không bật wake lock");
+      console.warn("Không bật wake lock");
     }
   }
 
@@ -66,8 +66,8 @@ static ensureRoot() {
     const url = linkCode
       ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
       : `roblox://placeID=${placeId}`;
-    console.log(`🚀 Đang mở: ${url}`);
-    if (linkCode) console.log(`🔗 Đã join bằng linkCode: ${linkCode}`);
+    console.log(`Đang mở: ${url}`);
+    if (linkCode) console.log(`Đã join bằng linkCode: ${linkCode}`);
     exec(`am start -a android.intent.action.VIEW -d "${url}"`);
   }
 
@@ -78,9 +78,9 @@ static ensureRoot() {
   static saveConfig(config) {
     try {
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-      console.log(`💾 Đã lưu config tại ${CONFIG_PATH}`);
+      console.log(`Đã lưu config tại ${CONFIG_PATH}`);
     } catch (e) {
-      console.error(`❌ Không thể lưu config: ${e.message}`);
+      console.error(`Không thể lưu config: ${e.message}`);
     }
   }
 
@@ -95,16 +95,16 @@ static ensureRoot() {
   }
 
   static printConfig(cfg) {
-    console.log("\n📂 Cấu hình trước đó:");
-    console.log(`👤 Username: ${cfg.username}`);
-    console.log(`🆔 UserID: ${cfg.userId}`);
-    console.log(`🎮 Game: ${cfg.gameName} (${cfg.placeId})`);
-    if (cfg.linkCode) console.log(`🔗 Private link code: ${cfg.linkCode}`);
-    console.log(`⏱️ Delay: ${cfg.delayMin} phút\n`);
+    console.log("\nCấu hình trước đó:");
+    console.log(`Username: ${cfg.username}`);
+    console.log(`UserID: ${cfg.userId}`);
+    console.log(`Game: ${cfg.gameName} (${cfg.placeId})`);
+    if (cfg.linkCode) console.log(`Private link code: ${cfg.linkCode}`);
+    console.log(`Delay: ${cfg.delayMin} phút\n`);
   }
 
   static getRobloxCookie() {
-    console.log("🔍 Đang lấy cookie ROBLOSECURITY...");
+    console.log(`Đang lấy cookie ROBLOSECURITY...`);
     let raw;
     try {
       raw = execSync(
@@ -116,14 +116,14 @@ static ensureRoot() {
           `su -c sh -c 'cat /data/data/com.roblox.client/app_webview/Default/Cookies | strings | grep ROBLOSECURITY'`
         ).toString();
       } catch (err) {
-        console.error("❌ Không thể đọc cookie bằng cả 2 cách.");
+        console.error(`Không thể đọc cookie bằng cả 2 cách.`);
         process.exit(1);
       }
     }
 
     const match = raw.match(/\.ROBLOSECURITY_([^\s\/]+)/);
     if (!match) {
-      console.error("❌ Không tìm được cookie ROBLOSECURITY!");
+      console.error(`Không tìm được cookie ROBLOSECURITY!`);
       process.exit(1);
     }
 
@@ -153,10 +153,10 @@ class RobloxUser {
       const { name, id } = res.data;
       this.username = name;
       this.userId = id;
-      console.log("✅ Lấy info thành công!");
+      console.log(`Lấy info thành công!`);
       return this.userId;
     } catch (e) {
-      console.error("❌ Lỗi xác thực người dùng:", e.message);
+      console.error(`Lỗi xác thực người dùng:`, e.message);
       return null;
     }
   }
@@ -190,12 +190,12 @@ class GameSelector {
       "4": ["126244816328678", "DIG"],
       "5": ["116495829188952", "Dead-Rails-Alpha"],
       "6": ["8737602449", "PLS-DONATE"],
-      "0": ["custom", "🔧 Tùy chỉnh"],
+      "0": ["custom", "Tùy chỉnh"],
     };
   }
 
   async chooseGame(rl) {
-    console.log("🎮 Chọn game:");
+    console.log(`Chọn game:`);
     for (let k in this.GAMES) {
       console.log(`${k}. ${this.GAMES[k][1]} (${this.GAMES[k][0]})`);
     }
@@ -205,16 +205,16 @@ class GameSelector {
     if (ans === "0") {
       const sub = (await Utils.ask(rl, "0.1 ID thủ công | 0.2 Link private redirect: ")).trim();
       if (sub === "1") {
-        const pid = (await Utils.ask(rl, "🔢 Nhập Place ID: ")).trim();
+        const pid = (await Utils.ask(rl, "Nhập Place ID: ")).trim();
         return { placeId: pid, name: "Tùy chỉnh", linkCode: null };
       }
       if (sub === "2") {
-        console.log("\n💡 Dán link redirect sau khi vào private server.");
+        console.log("\nDán link redirect sau khi vào private server.");
         while (true) {
-          const link = await Utils.ask(rl, "\n🔗 Dán link redirect đã chuyển hướng: ");
+          const link = await Utils.ask(rl, "\nDán link redirect đã chuyển hướng: ");
           const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
           if (!m) {
-            console.log("❌ Link không hợp lệ!");
+            console.log(`Link không hợp lệ!`);
             continue;
           }
           return {
@@ -224,7 +224,7 @@ class GameSelector {
           };
         }
       }
-      throw new Error("❌ Không hợp lệ!");
+      throw new Error(`Không hợp lệ!`);
     }
 
     if (this.GAMES[ans]) {
@@ -235,7 +235,7 @@ class GameSelector {
       };
     }
 
-    throw new Error("❌ Không hợp lệ!");
+    throw new Error(`Không hợp lệ!`);
   }
 }
 
@@ -262,7 +262,7 @@ class RejoinTool {
 
     if (saved) {
       Utils.printConfig(saved);
-      const useOld = (await Utils.ask(rl, "📝 Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
+      const useOld = (await Utils.ask(rl, "Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
       if (useOld === "y") {
         username = saved.username;
         userId = saved.userId;
@@ -280,22 +280,22 @@ class RejoinTool {
     const user = new RobloxUser(null, null, cookie);
     userId = await user.fetchAuthenticatedUser();
     if (!userId) {
-      console.error("❌ Không tìm thấy user ID");
+      console.error("Không tìm thấy user ID");
       rl.close();
       return;
     }
     username = user.username;
-    console.log(`✅ Username: ${username}`);
-    console.log(`✅ User ID: ${userId}`);
+    console.log(`Username: ${username}`);
+    console.log(`User ID: ${userId}`);
 
     const selector = new GameSelector();
     const game = await selector.chooseGame(rl);
 
     let delaySec;
     while (true) {
-      delaySec = parseInt(await Utils.ask(rl, "⏱️ Delay check (giây, 15-120): ")) || 1;
+      delaySec = parseInt(await Utils.ask(rl, "Delay check (giây, 15-120): ")) || 1;
       if (delaySec >= 15 && delaySec <= 120) break;
-      console.log("❌ Giá trị không hợp lệ! Vui lòng nhập lại.");
+      console.log("Giá trị không hợp lệ! Vui lòng nhập lại.");
     }
     rl.close();
 
@@ -322,7 +322,7 @@ class RejoinTool {
 
     console.clear();
     console.log(`👤 ${username} (🆔 ${userId}) | 🎮 ${this.game.name} (${this.game.placeId})`);
-    console.log(`🔁 Auto-check mỗi ${Math.ceil(delaySec / 60)} phút`);
+    console.log(`Auto-check mỗi ${Math.ceil(delaySec / 60)} phút`);
 
     await this.loop();
   }
@@ -341,34 +341,34 @@ async loop() {
     const timeStr = new Date().toLocaleTimeString();
 
     if (!presence || presence.userPresenceType === undefined) {
-      status = "❓ Không rõ";
-      info = "⚠️ Không lấy được trạng thái hoặc thiếu placeId";
+      status = `Không rõ`;
+      info = `Không lấy được trạng thái hoặc thiếu placeId`;
     } else if (presence.userPresenceType !== 2) {
-      status = "📴 Offline";
-      info = "👋 User không online hoặc chưa vào game";
+      status = `Offline`;
+      info = `User không online hoặc chưa vào game`;
       if (!this.hasLaunched || now - this.joinedAt > 30000) {
         Utils.killApp();
         Utils.launch(this.game.placeId, this.game.linkCode);
         this.joinedAt = now;
         this.hasLaunched = true;
-        info += " → Đã mở lại game!";
+        info += `Đã mở lại game!`;
       } else {
-        info += " (đợi thêm chút để tránh spam)";
+        info += ` (đợi thêm chút để tránh spam)`;
       }
     } else if (
       !presence.placeId ||
       presence.placeId.toString() !== this.game.placeId.toString()
     ) {
-      status = "🚫 Sai map";
-      info = `❌ User đang trong game nhưng sai placeId (${presence.placeId})`;
+      status = `Sai map`;
+      info = `User đang trong game nhưng sai placeId (${presence.placeId})`;
       Utils.killApp();
       Utils.launch(this.game.placeId, this.game.linkCode);
       this.joinedAt = now;
       this.hasLaunched = true;
-      info += " → Đã rejoin đúng map!";
+      info += `Đã rejoin đúng map!`;
     } else {
-      status = "✅ Đúng game";
-      info = "🎉 Đang trong đúng game rồi!";
+      status = `Đúng game`;
+      info = `Đang trong đúng game rồi!`;
       this.joinedAt = now;
       this.hasLaunched = true;
     }
@@ -400,7 +400,7 @@ async loop() {
 
       // In bảng
       const table = new Table({
-        head: ["👤 Username","📡 Trạng thái","ℹ️ Thông tin","🕒 Time","⏳ Delay còn lại"],
+        head: ["Username","Trạng thái","Thông tin","Time","Delay còn lại"],
         colWidths: [20,18,50,18,20],
         wordWrap: true,
         style: { head: ["cyan"], border: ["gray"] }
