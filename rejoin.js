@@ -29,7 +29,7 @@ const Table = require("cli-table3");
 const CONFIG_PATH = path.join(__dirname, "config.json");
 const util = require("util");
 const figlet = require("figlet");
-const boxen = require("boxen").default;
+const boxen = require("boxen");
 
 
 class Utils {
@@ -322,6 +322,7 @@ class RejoinTool {
   }
 
 
+
 async loop() {
   while (true) {
     const presence = await this.user.getPresence();
@@ -330,6 +331,7 @@ async loop() {
     let status = "";
     let info = "";
     const now = Date.now();
+    const timeStr = new Date().toLocaleTimeString();
 
     if (!presence || presence.userPresenceType === undefined) {
       status = "❓ Không rõ";
@@ -364,32 +366,30 @@ async loop() {
       this.hasLaunched = true;
     }
 
+    // Đếm ngược real-time
     for (let i = delaySec; i >= 0; i--) {
-      const countdownStr =
-        i > 60 ? `${Math.floor(i / 60)}m ${i % 60}s` : `${i}s`;
+      const countdownStr = i > 60 ? `${Math.floor(i / 60)}m ${i % 60}s` : `${i}s`;
 
-      // ⬅️ In banner có viền khối
-      const bannerText = figlet.textSync("Dawn Rejoin", {
+      console.clear();
+
+      // Tạo tiêu đề ASCII "Dawn Rejoin"
+      const title = figlet.textSync("Dawn Rejoin", {
         font: "Standard",
         horizontalLayout: "default",
         verticalLayout: "default"
       });
 
-      const boxedBanner = boxen(bannerText, {
+      // Bao viền bằng boxen
+      const boxedTitle = boxen(title, {
         padding: 1,
-        margin: 1,
-        borderStyle: "double",
         borderColor: "cyan",
+        borderStyle: "double",
         align: "center"
       });
 
-      // Clear màn hình
-      console.clear();
+      console.log(boxedTitle);
 
-      // In banner
-      console.log(boxedBanner);
-
-      // In bảng
+      // In bảng thông tin
       const table = new Table({
         head: ["👤 Username", "📡 Trạng thái", "ℹ️ Thông tin", "🕒 Time", "⏳ Delay còn lại"],
         colWidths: [20, 18, 50, 18, 20],
@@ -415,6 +415,7 @@ async loop() {
     }
   }
 }
+
 
 
 }
