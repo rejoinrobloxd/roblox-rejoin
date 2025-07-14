@@ -325,7 +325,7 @@ async loop() {
     const timeStr = new Date().toLocaleTimeString();
 
     const debugInfo = presence
-      ? JSON.stringify(presence, null, 2) // KHÔNG còn slice, hiện full đẹp
+      ? JSON.stringify(presence, null, 2)
       : "No data";
 
     let status = "";
@@ -366,7 +366,6 @@ async loop() {
       this.hasLaunched = true;
     }
 
-    // Clear console mỗi vòng lặp
     console.clear();
 
     const table = new Table({
@@ -375,10 +374,9 @@ async loop() {
         "👤 Username",
         "📡 Trạng thái",
         "ℹ️ Thông tin",
-        "🛠 Debug",
         "🕒 Time"
       ],
-      colWidths: [20, 20, 20, 40, 60, 18],
+      colWidths: [20, 20, 20, 50, 18],
       wordWrap: true,
       style: {
         head: ["cyan"],
@@ -391,15 +389,19 @@ async loop() {
       this.user.username,
       status,
       info,
-      debugInfo,
       timeStr
     ]);
 
+    // In bảng chính
     console.log(table.toString());
 
+    // In debugInfo dạng raw JSON, rõ ràng
+    console.log("\n🛠 DEBUG INFO:");
+    console.log(debugInfo);
+
     await new Promise((r) => setTimeout(r, this.delayMs));
-    }
   }
+}
 
 }
 
