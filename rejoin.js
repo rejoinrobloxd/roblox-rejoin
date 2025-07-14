@@ -325,7 +325,7 @@ async loop() {
     const timeStr = new Date().toLocaleTimeString();
 
     const debugInfo = presence
-      ? JSON.stringify(presence, null, 2).slice(0, 100) + "..."
+      ? JSON.stringify(presence, null, 2) // KHÔNG còn slice, hiện full đẹp
       : "No data";
 
     let status = "";
@@ -366,10 +366,9 @@ async loop() {
       this.hasLaunched = true;
     }
 
-    // Clear terminal mỗi lần để không bị đè bảng
+    // Clear console mỗi vòng lặp
     console.clear();
 
-    // Tạo bảng CLI siêu xịn
     const table = new Table({
       head: [
         "📦 Package",
@@ -379,7 +378,7 @@ async loop() {
         "🛠 Debug",
         "🕒 Time"
       ],
-      colWidths: [20, 18, 18, 36, 38, 14], // có thể chỉnh nếu cần rộng hơn
+      colWidths: [20, 20, 20, 40, 60, 18],
       wordWrap: true,
       style: {
         head: ["cyan"],
@@ -387,7 +386,6 @@ async loop() {
       }
     });
 
-    // Push data
     table.push([
       this.game.name,
       this.user.username,
@@ -397,14 +395,11 @@ async loop() {
       timeStr
     ]);
 
-    // In bảng
     console.log(table.toString());
 
     await new Promise((r) => setTimeout(r, this.delayMs));
+    }
   }
-}
-
-
 
 }
 
