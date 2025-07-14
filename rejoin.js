@@ -29,7 +29,8 @@ const Table = require("cli-table3");
 const CONFIG_PATH = path.join(__dirname, "config.json");
 const util = require("util");
 const figlet = require("figlet");
-const boxen = require("boxen");
+const boxen = require("boxen").default;
+
 
 class Utils {
 static ensureRoot() {
