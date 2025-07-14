@@ -318,7 +318,7 @@ class RejoinTool {
       name: gameName,
       linkCode,
     };
-    this.delayMs = Math.max(60, delaySec) * 1000;
+    this.delayMs = Math.max(15000, delaySec * 1000);
 
     console.clear();
     console.log(`👤 ${username} (🆔 ${userId}) | 🎮 ${this.game.name} (${this.game.placeId})`);
