@@ -1,16 +1,6 @@
 #!/usr/bin/env node
-
-const axios = require("axios");
-const readline = require("readline");
-const fs = require("fs");
 const { execSync, exec } = require("child_process");
-const path = require("path");
-const os = require("os");
-const Table = require("cli-table3");
-const CONFIG_PATH = path.join(__dirname, "config.json");
-const util = require("util");
-class Utils {
-static ensurePackages() {
+ensurePackages() {
   const requiredPackages = ["axios", "cli-table3"];
   requiredPackages.forEach((pkg) => {
     try {
@@ -26,7 +16,16 @@ static ensurePackages() {
     }
   });
 }
-
+ensurePackages();
+const axios = require("axios");
+const readline = require("readline");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+const Table = require("cli-table3");
+const CONFIG_PATH = path.join(__dirname, "config.json");
+const util = require("util");
+class Utils {
 static ensureRoot() {
   try {
     const uid = execSync("id -u").toString().trim();
