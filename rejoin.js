@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const { execSync, exec } = require("child_process");
-ensurePackages() {
+
+function ensurePackages() {
   const requiredPackages = ["axios", "cli-table3"];
   requiredPackages.forEach((pkg) => {
     try {
@@ -17,6 +18,9 @@ ensurePackages() {
   });
 }
 ensurePackages();
+
+
+
 const axios = require("axios");
 const readline = require("readline");
 const fs = require("fs");
