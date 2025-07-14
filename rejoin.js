@@ -164,7 +164,7 @@ class RobloxUser {
   async getPresence() {
     try {
       const r = await axios.post(
-        "https://presence.roblox.com/v1/presence/users",
+        "https://presence.roproxy.com/v1/presence/users",
         { userIds: [this.userId] },
         {
           headers: {
@@ -293,8 +293,8 @@ class RejoinTool {
 
     let delaySec;
     while (true) {
-      delaySec = parseInt(await Utils.ask(rl, "⏱️ Delay check (giây, 60-150): ")) || 1;
-      if (delaySec >= 60 && delaySec <= 150) break;
+      delaySec = parseInt(await Utils.ask(rl, "⏱️ Delay check (giây, 15-120): ")) || 1;
+      if (delaySec >= 15 && delaySec <= 120) break;
       console.log("❌ Giá trị không hợp lệ! Vui lòng nhập lại.");
     }
     rl.close();
