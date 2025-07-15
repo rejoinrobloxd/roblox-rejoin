@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 const { execSync, exec } = require("child_process");
 function ensurePackages() {
-  const requiredPackages = ["axios", "cli-table3"];
+  const requiredPackages = ["axios", "cli-table3", "figlet", "boxen"];
+
   requiredPackages.forEach((pkg) => {
     try {
       require.resolve(pkg);
@@ -258,7 +259,7 @@ class RejoinTool {
     console.log("== Rejoin Tool (Node.js version) ==");
 
     const saved = Utils.loadConfig();
-    let username, userId, placeId, gameName, linkCode, delaySec; // Declare delaySec here
+    let username, userId, placeId, gameName, linkCode, delaySec;
 
     if (saved) {
       Utils.printConfig(saved);
@@ -269,7 +270,7 @@ class RejoinTool {
         placeId = saved.placeId;
         gameName = saved.gameName;
         linkCode = saved.linkCode;
-        delaySec = saved.delaySec; // Ensure delaySec is loaded from the saved config
+        delaySec = saved.delaySec;
         rl.close();
         const cookie = Utils.getRobloxCookie();
         return this.finishSetup(username, userId, placeId, gameName, linkCode, delaySec, cookie);
@@ -373,7 +374,7 @@ async loop() {
       this.hasLaunched = true;
     }
 
-    // Đếm ngược real-time
+    
     for (let i = delaySec; i >= 0; i--) {
       const countdownStr = i >= 60
         ? `${Math.floor(i / 60)}m ${i % 60}s`
@@ -381,14 +382,14 @@ async loop() {
 
       console.clear();
 
-      // Tạo tiêu đề ASCII
+      
       const title = figlet.textSync("Dawn Rejoin", {
         font: "Standard",
         horizontalLayout: "default",
         verticalLayout: "default"
       });
 
-      // Bọc viền
+      
       const boxedTitle = boxen(title, {
         padding: 1,
         borderColor: "cyan",
@@ -398,7 +399,7 @@ async loop() {
 
       console.log(boxedTitle);
 
-      // In bảng
+      
       const table = new Table({
         head: ["Username","Trạng thái","Thông tin","Time","Delay còn lại"],
         colWidths: [20,18,50,18,20],
