@@ -352,7 +352,7 @@ async loop() {
         Utils.launch(this.game.placeId, this.game.linkCode);
         this.joinedAt = now;
         this.hasLaunched = true;
-        info += `Đã mở lại game!`;
+        info += `.Đã mở lại game!`;
       } else {
         info += ` (đợi thêm chút để tránh spam)`;
       }
@@ -368,8 +368,8 @@ async loop() {
       this.hasLaunched = true;
       info += `Đã rejoin đúng map!`;
     } else {
-      status = `Đúng game`;
-      info = `Đang trong đúng game rồi!`;
+      status = `Online`;
+      info = `Đang ở đúng game!`;
       this.joinedAt = now;
       this.hasLaunched = true;
     }
