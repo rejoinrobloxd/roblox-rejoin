@@ -323,7 +323,6 @@ class RejoinTool {
 
     console.clear();
     console.log(` ${username} ( ${userId}) |  ${this.game.name} (${this.game.placeId})`);
-    console.log(`Auto-check mỗi ${Math.ceil(delaySec / 60)} phút`);
 
     await this.loop();
   }
