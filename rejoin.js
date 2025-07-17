@@ -19,8 +19,6 @@ function ensurePackages() {
 }
 ensurePackages();
 
-
-
 const axios = require("axios");
 const readline = require("readline");
 const fs = require("fs");
@@ -33,22 +31,21 @@ const figlet = require("figlet");
 const _boxen = require("boxen");
 const boxen = _boxen.default || _boxen;
 
-
 class Utils {
-static ensureRoot() {
-  try {
-    const uid = execSync("id -u").toString().trim();
-    if (uid !== "0") {
-      const node = execSync("which node").toString().trim();
-      console.log("Cần quyền root, chuyển qua su...");
-      execSync(`su -c "${node} ${__filename}"`, { stdio: "inherit" });
-      process.exit(0);
+  static ensureRoot() {
+    try {
+      const uid = execSync("id -u").toString().trim();
+      if (uid !== "0") {
+        const node = execSync("which node").toString().trim();
+        console.log("Cần quyền root, chuyển qua su...");
+        execSync(`su -c "${node} ${__filename}"`, { stdio: "inherit" });
+        process.exit(0);
+      }
+    } catch (e) {
+      console.error("Không thể chạy với quyền root:", e.message);
+      process.exit(1);
     }
-  } catch (e) {
-    console.error("Không thể chạy với quyền root:", e.message);
-    process.exit(1);
   }
-}
 
   static enableWakeLock() {
     try {
@@ -240,13 +237,142 @@ class GameSelector {
   }
 }
 
+// 🚀 Tách logic status ra class riêng
+class StatusHandler {
+  constructor() {
+    this.hasLaunched = false;
+    this.joinedAt = 0;
+  }
+
+  analyzePresence(presence, targetPlaceId) {
+    const now = Date.now();
+    
+    if (!presence || presence.userPresenceType === undefined) {
+      return {
+        status: "Không rõ",
+        info: "Không lấy được trạng thái hoặc thiếu placeId",
+        shouldLaunch: false
+      };
+    }
+
+    if (presence.userPresenceType !== 2) {
+      const shouldLaunch = !this.hasLaunched || now - this.joinedAt > 30000;
+      return {
+        status: "Offline",
+        info: `User không online hoặc chưa vào game${shouldLaunch ? '. Đã mở lại game!' : ' (đợi thêm chút để tránh spam)'}`,
+        shouldLaunch
+      };
+    }
+
+    if (!presence.placeId || presence.placeId.toString() !== targetPlaceId.toString()) {
+      return {
+        status: "Sai map",
+        info: `User đang trong game nhưng sai placeId (${presence.placeId}). Đã rejoin đúng map!`,
+        shouldLaunch: true
+      };
+    }
+
+    return {
+      status: "Online",
+      info: "Đang ở đúng game!",
+      shouldLaunch: false
+    };
+  }
+
+  updateJoinStatus(shouldLaunch) {
+    if (shouldLaunch) {
+      this.joinedAt = Date.now();
+      this.hasLaunched = true;
+    }
+  }
+}
+
+
+class UIRenderer {
+  static renderTitle() {
+    const title = figlet.textSync("Dawn Rejoin", {
+      font: "Standard",
+      horizontalLayout: "default",
+      verticalLayout: "default"
+    });
+
+    return boxen(title, {
+      padding: 1,
+      borderColor: "cyan",
+      borderStyle: "double",
+      align: "center"
+    });
+  }
+
+  static renderTable(username, status, info, countdown) {
+    const table = new Table({
+      head: ["Username", "Trạng thái", "Thông tin", "Time", "Delay còn lại"],
+      colWidths: [20, 18, 50, 18, 20],
+      wordWrap: true,
+      style: { head: ["cyan"], border: ["gray"] }
+    });
+
+    table.push([
+      username,
+      status,
+      info,
+      new Date().toLocaleTimeString(),
+      countdown
+    ]);
+
+    return table.toString();
+  }
+
+  static formatCountdown(seconds) {
+    return seconds >= 60 
+      ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` 
+      : `${seconds}s`;
+  }
+}
+
+
+class GameLauncher {
+  static handleGameLaunch(shouldLaunch, placeId, linkCode) {
+    if (shouldLaunch) {
+      Utils.killApp();
+      Utils.launch(placeId, linkCode);
+    }
+  }
+}
+
+
+class ConfigManager {
+  static async handleExistingConfig(rl) {
+    const saved = Utils.loadConfig();
+    if (!saved) return null;
+
+    Utils.printConfig(saved);
+    const useOld = (await Utils.ask(rl, "Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
+    
+    if (useOld === "y") {
+      return saved;
+    }
+    return null;
+  }
+
+  static async getDelayFromUser(rl) {
+    while (true) {
+      const delaySec = parseInt(await Utils.ask(rl, "Delay check (giây, 15-120): ")) || 1;
+      if (delaySec >= 15 && delaySec <= 120) {
+        return delaySec;
+      }
+      console.log("Giá trị không hợp lệ! Vui lòng nhập lại.");
+    }
+  }
+}
+
+
 class RejoinTool {
   constructor() {
     this.user = null;
     this.game = null;
     this.delayMs = 60000;
-    this.hasLaunched = false;
-    this.joinedAt = 0;
+    this.statusHandler = new StatusHandler();
   }
 
   async start() {
@@ -258,163 +384,90 @@ class RejoinTool {
     console.clear();
     console.log("== Rejoin Tool (Node.js version) ==");
 
-    const saved = Utils.loadConfig();
-    let username, userId, placeId, gameName, linkCode, delaySec;
-
-    if (saved) {
-      Utils.printConfig(saved);
-      const useOld = (await Utils.ask(rl, "Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
-      if (useOld === "y") {
-        username = saved.username;
-        userId = saved.userId;
-        placeId = saved.placeId;
-        gameName = saved.gameName;
-        linkCode = saved.linkCode;
-        delaySec = saved.delaySec;
-        rl.close();
-        const cookie = Utils.getRobloxCookie();
-        return this.finishSetup(username, userId, placeId, gameName, linkCode, delaySec, cookie);
-      }
+    
+    const existingConfig = await ConfigManager.handleExistingConfig(rl);
+    if (existingConfig) {
+      rl.close();
+      const cookie = Utils.getRobloxCookie();
+      return this.initializeWithConfig(existingConfig, cookie);
     }
+
+    
+    const config = await this.setupNewConfig(rl);
+    rl.close();
 
     const cookie = Utils.getRobloxCookie();
+    return this.initializeWithConfig(config, cookie);
+  }
+
+  async setupNewConfig(rl) {
+    const cookie = Utils.getRobloxCookie();
     const user = new RobloxUser(null, null, cookie);
-    userId = await user.fetchAuthenticatedUser();
+    const userId = await user.fetchAuthenticatedUser();
+    
     if (!userId) {
       console.error("Không tìm thấy user ID");
-      rl.close();
       return;
     }
-    username = user.username;
-    console.log(`Username: ${username}`);
+
+    console.log(`Username: ${user.username}`);
     console.log(`User ID: ${userId}`);
 
     const selector = new GameSelector();
     const game = await selector.chooseGame(rl);
+    const delaySec = await ConfigManager.getDelayFromUser(rl);
 
-    
-    while (true) {
-      delaySec = parseInt(await Utils.ask(rl, "Delay check (giây, 15-120): ")) || 1;
-      if (delaySec >= 15 && delaySec <= 120) break;
-      console.log("Giá trị không hợp lệ! Vui lòng nhập lại.");
-    }
-    rl.close();
-
-    Utils.saveConfig({
-      username,
+    const config = {
+      username: user.username,
       userId,
       placeId: game.placeId,
       gameName: game.name,
       linkCode: game.linkCode,
-      delaySec: delaySec,
-    });
+      delaySec
+    };
 
-    return this.finishSetup(username, userId, game.placeId, game.name, game.linkCode, delaySec, cookie);
+    Utils.saveConfig(config);
+    return config;
   }
 
-  async finishSetup(username, userId, placeId, gameName, linkCode, delaySec, cookie) {
-    this.user = new RobloxUser(username, userId, cookie);
+  async initializeWithConfig(config, cookie) {
+    this.user = new RobloxUser(config.username, config.userId, cookie);
     this.game = {
-      placeId,
-      name: gameName,
-      linkCode,
+      placeId: config.placeId,
+      name: config.gameName,
+      linkCode: config.linkCode,
     };
-    this.delayMs = Math.max(15000, delaySec * 1000);
+    this.delayMs = Math.max(15000, config.delaySec * 1000);
 
     console.clear();
-    console.log(` ${username} ( ${userId}) |  ${this.game.name} (${this.game.placeId})`);
+    console.log(`${config.username} (${config.userId}) | ${this.game.name} (${this.game.placeId})`);
 
-    await this.loop();
+    await this.startMonitoring();
   }
 
+  async startMonitoring() {
+    while (true) {
+      const presence = await this.user.getPresence();
+      const analysis = this.statusHandler.analyzePresence(presence, this.game.placeId);
+      
+      
+      GameLauncher.handleGameLaunch(analysis.shouldLaunch, this.game.placeId, this.game.linkCode);
+      this.statusHandler.updateJoinStatus(analysis.shouldLaunch);
 
-
-async loop() {
-  while (true) {
-    const presence = await this.user.getPresence();
-    const delaySec = Math.floor(this.delayMs / 1000);
-
-    // Xác định status, info như mọi lần...
-    let status = "";
-    let info = "";
-    const now = Date.now();
-    const timeStr = new Date().toLocaleTimeString();
-
-    if (!presence || presence.userPresenceType === undefined) {
-      status = `Không rõ`;
-      info = `Không lấy được trạng thái hoặc thiếu placeId`;
-    } else if (presence.userPresenceType !== 2) {
-      status = `Offline`;
-      info = `User không online hoặc chưa vào game`;
-      if (!this.hasLaunched || now - this.joinedAt > 30000) {
-        Utils.killApp();
-        Utils.launch(this.game.placeId, this.game.linkCode);
-        this.joinedAt = now;
-        this.hasLaunched = true;
-        info += `.Đã mở lại game!`;
-      } else {
-        info += ` (đợi thêm chút để tránh spam)`;
-      }
-    } else if (
-      !presence.placeId ||
-      presence.placeId.toString() !== this.game.placeId.toString()
-    ) {
-      status = `Sai map`;
-      info = `User đang trong game nhưng sai placeId (${presence.placeId})`;
-      Utils.killApp();
-      Utils.launch(this.game.placeId, this.game.linkCode);
-      this.joinedAt = now;
-      this.hasLaunched = true;
-      info += `Đã rejoin đúng map!`;
-    } else {
-      status = `Online`;
-      info = `Đang ở đúng game!`;
-      this.joinedAt = now;
-      this.hasLaunched = true;
+      
+      await this.runCountdown(analysis.status, analysis.info, presence);
     }
+  }
 
+  async runCountdown(status, info, presence) {
+    const delaySec = Math.floor(this.delayMs / 1000);
     
     for (let i = delaySec; i >= 0; i--) {
-      const countdownStr = i >= 60
-        ? `${Math.floor(i / 60)}m ${i % 60}s`
-        : `${i}s`;
+      const countdownStr = UIRenderer.formatCountdown(i);
 
       console.clear();
-
-      
-      const title = figlet.textSync("Dawn Rejoin", {
-        font: "Standard",
-        horizontalLayout: "default",
-        verticalLayout: "default"
-      });
-
-      
-      const boxedTitle = boxen(title, {
-        padding: 1,
-        borderColor: "cyan",
-        borderStyle: "double",
-        align: "center"
-      });
-
-      console.log(boxedTitle);
-
-      
-      const table = new Table({
-        head: ["Username","Trạng thái","Thông tin","Time","Delay còn lại"],
-        colWidths: [20,18,50,18,20],
-        wordWrap: true,
-        style: { head: ["cyan"], border: ["gray"] }
-      });
-
-      table.push([
-        this.user.username,
-        status,
-        info,
-        new Date().toLocaleTimeString(),
-        countdownStr
-      ]);
-
-      console.log(table.toString());
+      console.log(UIRenderer.renderTitle());
+      console.log(UIRenderer.renderTable(this.user.username, status, info, countdownStr));
       console.log("\nDebug JSON:\n" + JSON.stringify(presence, null, 2));
 
       await new Promise((r) => setTimeout(r, 1000));
@@ -422,8 +475,6 @@ async loop() {
   }
 }
 
-
-}
 
 (async () => {
   const tool = new RejoinTool();
