@@ -4,11 +4,6 @@ TMP_PATH="./.rejoin-cache.js"
 RAW_URL="https://raw.githubusercontent.com/NhinQuanhLanCuoi9999/roblox-rejoin/main/rejoin.js"
 LOADER_PATH="/data/data/com.termux/files/usr/bin/loader"
 
-# 🛠️ Tạo loader mới mỗi lần chạy
-echo "🛠️ Đang tạo loader mới ở $LOADER_PATH..."
-cp "$0" "$LOADER_PATH" && chmod +x "$LOADER_PATH"
-echo "✅ Loader đã được cập nhật lại!"
-echo "👉 Từ lần sau chỉ cần gõ: loader"
 
 # 🔥 Xoá cache cũ nếu có
 if [ -f "$TMP_PATH" ]; then
