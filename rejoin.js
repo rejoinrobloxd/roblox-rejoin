@@ -237,11 +237,14 @@ class GameSelector {
   }
 }
 
-// 🚀 Tách logic status ra class riêng
+
+
 class StatusHandler {
   constructor() {
     this.hasLaunched = false;
     this.joinedAt = 0;
+    this.lastOfflineCheck = 0;
+    this.isWaitingDoubleCheck = false;
   }
 
   analyzePresence(presence, targetPlaceId) {
@@ -255,11 +258,51 @@ class StatusHandler {
       };
     }
 
+    // Check nếu user offline (userPresenceType = 0 hoặc 1)
+    if (presence.userPresenceType === 0 || presence.userPresenceType === 1) {
+      // Nếu chưa có lần check offline nào hoặc đã quá lâu (reset)
+      if (this.lastOfflineCheck === 0 || now - this.lastOfflineCheck > 120000) {
+        this.lastOfflineCheck = now;
+        this.isWaitingDoubleCheck = true;
+        return {
+          status: "Offline (1/2)",
+          info: "Phát hiện offline, đang chờ check lần 2 để chắc chắn... 🔄",
+          shouldLaunch: false
+        };
+      }
+      
+      // Nếu đã check offline lần 1 và vẫn offline trong vòng 2 phút
+      if (this.isWaitingDoubleCheck && now - this.lastOfflineCheck <= 120000) {
+        this.isWaitingDoubleCheck = false;
+        this.lastOfflineCheck = 0; // Reset
+        const shouldLaunch = !this.hasLaunched || now - this.joinedAt > 30000;
+        return {
+          status: "Offline (2/2)",
+          info: `Xác nhận offline sau 2 lần check! ${shouldLaunch ? 'Tiến hành rejoin! 🚀' : 'Đợi thêm chút để tránh spam ⏰'}`,
+          shouldLaunch
+        };
+      }
+      
+      // Fallback case
+      return {
+        status: "Offline",
+        info: "User offline, chưa đến lúc rejoin",
+        shouldLaunch: false
+      };
+    }
+
+    // Reset offline check khi user không offline
+    if (this.lastOfflineCheck !== 0) {
+      this.lastOfflineCheck = 0;
+      this.isWaitingDoubleCheck = false;
+    }
+
+    // Logic cũ cho userPresenceType = 2 (đang chơi game)
     if (presence.userPresenceType !== 2) {
       const shouldLaunch = !this.hasLaunched || now - this.joinedAt > 30000;
       return {
-        status: "Offline",
-        info: `User không online hoặc chưa vào game${shouldLaunch ? '. Đã mở lại game!' : ' (đợi thêm chút để tránh spam)'}`,
+        status: "Không online",
+        info: `User không trong game${shouldLaunch ? '. Đã mở lại game! 🎮' : ' (đợi thêm chút để tránh spam) ⏰'}`,
         shouldLaunch
       };
     }
@@ -267,14 +310,14 @@ class StatusHandler {
     if (!presence.placeId || presence.placeId.toString() !== targetPlaceId.toString()) {
       return {
         status: "Sai map",
-        info: `User đang trong game nhưng sai placeId (${presence.placeId}). Đã rejoin đúng map!`,
+        info: `User đang trong game nhưng sai placeId (${presence.placeId}). Đã rejoin đúng map! 🎯`,
         shouldLaunch: true
       };
     }
 
     return {
-      status: "Online",
-      info: "Đang ở đúng game!",
+      status: "Online ✅",
+      info: "Đang ở đúng game.",
       shouldLaunch: false
     };
   }
@@ -286,7 +329,6 @@ class StatusHandler {
     }
   }
 }
-
 
 class UIRenderer {
   static renderTitle() {
