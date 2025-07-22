@@ -6,7 +6,10 @@ import {
   loadConfig,
   printConfig,
   formatCountdown,
-  getTerminalSize
+  getTerminalSize,
+  ensureRoot,
+  enableWakeLock,
+  getRobloxCookie
 } from '../utils/index.js';
 import RobloxUser from '../roblox/user.js';
 import GameSelector from '../roblox/gameSelector.js';
@@ -53,7 +56,7 @@ class RejoinTool {
     this.robloxVersion = versionInfo.robloxVersion;
     this.packageName = versionInfo.packageName;
 
-    const cookie = Utils.getRobloxCookie(this.packageName);
+    const cookie = getRobloxCookie(this.packageName);
     const user = new RobloxUser(null, null, cookie);
     const userId = await user.fetchAuthenticatedUser();
     
@@ -81,7 +84,7 @@ class RejoinTool {
       packageName: this.packageName
     };
 
-    Utils.saveConfig(config);
+    saveConfig(config);
     return config;
   }
 
