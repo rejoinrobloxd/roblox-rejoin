@@ -46,7 +46,7 @@ class RejoinTool {
 
     const config = await this.setupNewConfig(rl);
     rl.close();
-
+    if (!config) return;
     const cookie = getRobloxCookie(config.packageName);
     return this.initializeWithConfig(config, cookie);
   }
