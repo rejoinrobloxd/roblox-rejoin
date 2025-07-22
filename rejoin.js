@@ -321,13 +321,13 @@ class StatusHandler {
     this.joinedAt = 0;
   }
 
-  analyzePresence(presence, targetPlaceId) {
+  analyzePresence(presence, targetRootPlaceId) {
     const now = Date.now();
-    
+
     if (!presence || presence.userPresenceType === undefined) {
       return {
         status: "Không rõ",
-        info: "Không lấy được trạng thái hoặc thiếu placeId",
+        info: "Không lấy được trạng thái hoặc thiếu rootPlaceId",
         shouldLaunch: false
       };
     }
@@ -352,10 +352,10 @@ class StatusHandler {
       };
     }
 
-    if (!presence.placeId || presence.placeId.toString() !== targetPlaceId.toString()) {
+    if (!presence.rootPlaceId || presence.rootPlaceId.toString() !== targetRootPlaceId.toString()) {
       return {
         status: "Sai map",
-        info: `User đang trong game nhưng sai placeId (${presence.placeId}). Đã rejoin đúng map! 🎯`,
+        info: `User đang trong game nhưng sai rootPlaceId (${presence.rootPlaceId}). Đã rejoin đúng map! 🎯`,
         shouldLaunch: true
       };
     }
@@ -374,6 +374,7 @@ class StatusHandler {
     }
   }
 }
+
 
 class UIRenderer {
   static renderTitle() {
