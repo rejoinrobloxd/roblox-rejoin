@@ -1,10 +1,12 @@
 #!/bin/bash
+
 # ⚙️ Cấu hình
-TMP_PATH="./.rejoin-cache.js"
-RAW_URL="https://raw.githubusercontent.com/NhinQuanhLanCuoi9999/roblox-rejoin/main/rejoin.js"
+REPO_URL="https://github.com/NhinQuanhLanCuoi9999/roblox-rejoin"
+REPO_DIR="$HOME/roblox-rejoin"
+WORK_DIR="$REPO_DIR/main/src"
 LOADER_PATH="/data/data/com.termux/files/usr/bin/loader"
 
-# 🧠 Auto setup command 'loader' nếu chưa có
+# 🧠 Tạo alias 'loader' nếu chưa có
 if [ ! -f "$LOADER_PATH" ]; then
     echo "🛠️ Đang tạo lệnh 'loader' để dùng cho lần sau..."
     cp "$0" "$LOADER_PATH" && chmod +x "$LOADER_PATH"
@@ -15,23 +17,32 @@ if [ ! -f "$LOADER_PATH" ]; then
     fi
 fi
 
-# 🔥 Xoá cache cũ nếu có
-if [ -f "$TMP_PATH" ]; then
-    rm -f "$TMP_PATH" && echo "🧹 Đã xoá cache cũ!" || echo "⚠️ Không thể xoá cache cũ!"
+# 📦 Kiểm tra & cài git nếu chưa có
+if ! command -v git &> /dev/null; then
+    echo "📦 Git chưa có, đang cài đặt..."
+    pkg update -y && pkg install -y git
+    if [ $? -ne 0 ]; then
+        echo "❌ Không thể cài đặt git!"
+        exit 1
+    fi
 fi
 
-# 🌐 Tải file mới từ GitHub
-echo "🌍 Đang tải file từ GitHub..."
-curl -fsSL -H "Cache-Control: no-cache" "$RAW_URL" -o "$TMP_PATH"
-if [ $? -ne 0 ]; then
-    echo "❌ Lỗi khi tải file!"
-    exit 1
+# ⬇️ Clone hoặc cập nhật repo
+if [ ! -d "$REPO_DIR/.git" ]; then
+    echo "🌱 Đang clone repo về lần đầu..."
+    git clone "$REPO_URL" "$REPO_DIR"
+    if [ $? -ne 0 ]; then
+        echo "❌ Clone thất bại!"
+        exit 1
+    fi
+else
+    echo "🔁 Đã có repo, đang pull bản mới..."
+    cd "$REPO_DIR"
+    git reset --hard
+    git pull
 fi
 
-# 🔐 Cấp quyền cho thư mục home
-chmod u+rw ~ && echo "✅ Đã cấp quyền đọc/ghi cho ~" || echo "⚠️ Không thể chỉnh quyền cho thư mục ~"
-
-# 🧠 Kiểm tra Node.js
+# 🔍 Kiểm tra Node.js
 NODE_PATH="/data/data/com.termux/files/usr/bin/node"
 if [ ! -x "$NODE_PATH" ]; then
     pkg install -y which > /dev/null 2>&1
@@ -51,24 +62,16 @@ if [ -z "$NODE_PATH" ]; then
     fi
 fi
 
-# 🔥 Tự động gán node vào su
-echo "🚀 Đang setup node cho su..."
+# 🧠 Cài đặt alias cho su nếu có
 SU_PATH=$(which su)
 if [ -n "$SU_PATH" ]; then
-    echo "📝 Tạo alias node cho su..."
+    echo "🔧 Gán alias node cho su..."
     echo "alias node='$NODE_PATH'" >> ~/.bashrc
-    echo "alias node='$NODE_PATH'" >> ~/.zshrc 2>/dev/null || true
-
-    echo "🔧 Cập nhật PATH cho su..."
     echo "export PATH=\"$(dirname $NODE_PATH):\$PATH\"" >> ~/.bashrc
-    echo "export PATH=\"$(dirname $NODE_PATH):\$PATH\"" >> ~/.zshrc 2>/dev/null || true
-
     source ~/.bashrc 2>/dev/null || true
-    echo "✅ Node đã được gán vào su thành công! 🎉"
-else
-    echo "⚠️ Không tìm thấy su, nhưng vẫn có thể dùng node bình thường"
 fi
 
-# 🚀 Chạy script bằng Node
-echo "🚀 Đang chạy script bằng Node..."
-"$NODE_PATH" "$TMP_PATH"
+# 🚀 Chạy main.js trong repo
+cd "$WORK_DIR"
+echo "🚀 Đang chạy main.js từ repo..."
+"$NODE_PATH" main.js
