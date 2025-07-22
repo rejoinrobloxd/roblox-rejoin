@@ -1,3 +1,7 @@
+import figlet from "figlet";
+import _boxen from "boxen";
+const boxen = _boxen.default || _boxen;
+import Table from "cli-table3";
 class UIRenderer {
   static renderTitle() {
     const title = figlet.textSync("Dawn Rejoin", {
