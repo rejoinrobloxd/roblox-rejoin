@@ -17,6 +17,7 @@ import ConfigManager from '../config/manager.js';
 import StatusHandler from './statusHandler.js';
 import GameLauncher from './gameLauncher.js';
 import RobloxVersionSelector from '../roblox/versionSelector.js';
+import UIRenderer from '../ui/renderer.js';
 
 class RejoinTool {
   constructor() {
