@@ -56,15 +56,15 @@ class Utils {
     }
   }
 
-  static killApp() {
-    exec("am force-stop com.roblox.client");
+  static killApp(packageName) {
+    exec(`am force-stop ${packageName}`);
   }
 
-  static launch(placeId, linkCode = null) {
+  static launch(placeId, linkCode = null, packageName) {
     const url = linkCode
       ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
       : `roblox://placeID=${placeId}`;
-    console.log(`Đang mở: ${url}`);
+    console.log(`Đang mở: ${url} (${packageName})`);
     if (linkCode) console.log(`Đã join bằng linkCode: ${linkCode}`);
     exec(`am start -a android.intent.action.VIEW -d "${url}"`);
   }
@@ -97,37 +97,115 @@ class Utils {
     console.log(`Username: ${cfg.username}`);
     console.log(`UserID: ${cfg.userId}`);
     console.log(`Game: ${cfg.gameName} (${cfg.placeId})`);
+    console.log(`Roblox Version: ${cfg.robloxVersion === 'international' ? 'Quốc tế' : 'VNG'} (${cfg.packageName})`);
     if (cfg.linkCode) console.log(`Private link code: ${cfg.linkCode}`);
     console.log(`Delay: ${cfg.delaySec} giây\n`);
   }
 
-  static getRobloxCookie() {
-    console.log(`Đang lấy cookie ROBLOSECURITY...`);
+  static detectRobloxVersions() {
+    const versions = {};
+    
+    try {
+      // Check for international Roblox
+      execSync("pm list packages | grep com.roblox.client", { stdio: 'pipe' });
+      versions.international = {
+        packageName: "com.roblox.client",
+        displayName: "Roblox Quốc tế"
+      };
+    } catch {
+      // International version not found
+    }
+
+    try {
+      // Check for VNG Roblox
+      execSync("pm list packages | grep com.roblox.client.vnggames", { stdio: 'pipe' });
+      versions.vng = {
+        packageName: "com.roblox.client.vnggames",
+        displayName: "Roblox VNG"
+      };
+    } catch {
+      // VNG version not found
+    }
+
+    return versions;
+  }
+
+  static getRobloxCookie(packageName) {
+    console.log(`Đang lấy cookie ROBLOSECURITY từ ${packageName}...`);
     let raw;
     try {
       raw = execSync(
-        `cat /data/data/com.roblox.client/app_webview/Default/Cookies | strings | grep ROBLOSECURITY`
+        `cat /data/data/${packageName}/app_webview/Default/Cookies | strings | grep ROBLOSECURITY`
       ).toString();
     } catch {
       try {
         raw = execSync(
-          `su -c sh -c 'cat /data/data/com.roblox.client/app_webview/Default/Cookies | strings | grep ROBLOSECURITY'`
+          `su -c sh -c 'cat /data/data/${packageName}/app_webview/Default/Cookies | strings | grep ROBLOSECURITY'`
         ).toString();
       } catch (err) {
-        console.error(`Không thể đọc cookie bằng cả 2 cách.`);
+        console.error(`Không thể đọc cookie từ ${packageName} bằng cả 2 cách.`);
         process.exit(1);
       }
     }
 
     const match = raw.match(/\.ROBLOSECURITY_([^\s\/]+)/);
     if (!match) {
-      console.error(`Không tìm được cookie ROBLOSECURITY!`);
+      console.error(`Không tìm được cookie ROBLOSECURITY từ ${packageName}!`);
       process.exit(1);
     }
 
     let cookieValue = match[1].trim();
     if (!cookieValue.startsWith("_")) cookieValue = "_" + cookieValue;
     return `.ROBLOSECURITY=${cookieValue}`;
+  }
+}
+
+class RobloxVersionSelector {
+  static async selectVersion(rl) {
+    const versions = Utils.detectRobloxVersions();
+    
+    if (Object.keys(versions).length === 0) {
+      console.error("Không tìm thấy Roblox nào được cài đặt!");
+      process.exit(1);
+    }
+
+    if (Object.keys(versions).length === 1) {
+      // Only one version found, auto-select
+      const versionKey = Object.keys(versions)[0];
+      const version = versions[versionKey];
+      console.log(`Chỉ tìm thấy: ${version.displayName}`);
+      return {
+        robloxVersion: versionKey,
+        packageName: version.packageName
+      };
+    }
+
+    // Multiple versions found, let user choose
+    console.log("\nTìm thấy các phiên bản Roblox:");
+    let index = 1;
+    const versionList = [];
+    
+    for (const [key, version] of Object.entries(versions)) {
+      console.log(`${index}. ${version.displayName} (${version.packageName})`);
+      versionList.push({ key, ...version });
+      index++;
+    }
+
+    while (true) {
+      const choice = await Utils.ask(rl, "\nChọn phiên bản Roblox (nhập số): ");
+      const choiceNum = parseInt(choice.trim());
+      
+      if (choiceNum >= 1 && choiceNum <= versionList.length) {
+        const selected = versionList[choiceNum - 1];
+        console.log(`Đã chọn: ${selected.displayName}`);
+        return {
+          robloxVersion: selected.key,
+          packageName: selected.packageName
+        };
+      }
+      
+      console.log("Lựa chọn không hợp lệ! Vui lòng thử lại.");
+    }
   }
 }
 
@@ -236,8 +314,6 @@ class GameSelector {
     throw new Error(`Không hợp lệ!`);
   }
 }
-
-
 
 class StatusHandler {
   constructor() {
@@ -364,7 +440,7 @@ class UIRenderer {
     return minWidths;
   }
 
-  static renderTable(username, status, info, countdown) {
+  static renderTable(username, status, info, countdown, robloxVersion) {
     const { width: terminalWidth } = this.getTerminalSize();
     const colWidths = this.calculateColumnWidths(terminalWidth);
 
@@ -384,9 +460,11 @@ class UIRenderer {
       }
     });
 
-    // Let the table handle word wrapping naturally
+    // Add Roblox version info to username
+    const userInfo = `${username}\n(${robloxVersion === 'international' ? 'Quốc tế' : 'VNG'})`;
+
     table.push([
-      username,
+      userInfo,
       status,
       info,
       new Date().toLocaleTimeString(),
@@ -396,7 +474,7 @@ class UIRenderer {
     return table.toString();
   }
 
-  static renderCompactTable(username, status, info, countdown) {
+  static renderCompactTable(username, status, info, countdown, robloxVersion) {
     // For very small screens, still use table but with smaller columns
     const { width: terminalWidth } = this.getTerminalSize();
     
@@ -412,7 +490,7 @@ class UIRenderer {
       });
 
       table.push(
-        ["User", username],
+        ["User", `${username} (${robloxVersion === 'international' ? 'Quốc tế' : 'VNG'})`],
         ["Status", status],
         ["Info", info],
         ["Time", new Date().toLocaleTimeString()],
@@ -422,7 +500,7 @@ class UIRenderer {
       return table.toString();
     }
 
-    return this.renderTable(username, status, info, countdown);
+    return this.renderTable(username, status, info, countdown, robloxVersion);
   }
 
   static formatCountdown(seconds) {
@@ -432,32 +510,46 @@ class UIRenderer {
   }
 
   // Auto-detect best rendering method
-  static smartRender(username, status, info, countdown) {
+  static smartRender(username, status, info, countdown, robloxVersion) {
     const { width: terminalWidth } = this.getTerminalSize();
     
     if (terminalWidth < 50) {
-      return this.renderCompactTable(username, status, info, countdown);
+      return this.renderCompactTable(username, status, info, countdown, robloxVersion);
     }
     
-    return this.renderTable(username, status, info, countdown);
+    return this.renderTable(username, status, info, countdown, robloxVersion);
   }
 }
 
-
 class GameLauncher {
-  static handleGameLaunch(shouldLaunch, placeId, linkCode) {
+  static handleGameLaunch(shouldLaunch, placeId, linkCode, packageName) {
     if (shouldLaunch) {
-      Utils.killApp();
-      Utils.launch(placeId, linkCode);
+      Utils.killApp(packageName);
+      Utils.launch(placeId, linkCode, packageName);
     }
   }
 }
-
 
 class ConfigManager {
   static async handleExistingConfig(rl) {
     const saved = Utils.loadConfig();
     if (!saved) return null;
+
+    // Check if the saved package is still available
+    const versions = Utils.detectRobloxVersions();
+    let packageStillExists = false;
+    
+    for (const [key, version] of Object.entries(versions)) {
+      if (version.packageName === saved.packageName) {
+        packageStillExists = true;
+        break;
+      }
+    }
+
+    if (!packageStillExists) {
+      console.log(`\nPhiên bản Roblox đã lưu (${saved.packageName}) không còn tồn tại!`);
+      return null;
+    }
 
     Utils.printConfig(saved);
     const useOld = (await Utils.ask(rl, "Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
@@ -479,13 +571,14 @@ class ConfigManager {
   }
 }
 
-
 class RejoinTool {
   constructor() {
     this.user = null;
     this.game = null;
     this.delayMs = 60000;
     this.statusHandler = new StatusHandler();
+    this.robloxVersion = null;
+    this.packageName = null;
   }
 
   async start() {
@@ -497,24 +590,27 @@ class RejoinTool {
     console.clear();
     console.log("== Rejoin Tool (Node.js version) ==");
 
-    
     const existingConfig = await ConfigManager.handleExistingConfig(rl);
     if (existingConfig) {
       rl.close();
-      const cookie = Utils.getRobloxCookie();
+      const cookie = Utils.getRobloxCookie(existingConfig.packageName);
       return this.initializeWithConfig(existingConfig, cookie);
     }
 
-    
     const config = await this.setupNewConfig(rl);
     rl.close();
 
-    const cookie = Utils.getRobloxCookie();
+    const cookie = Utils.getRobloxCookie(config.packageName);
     return this.initializeWithConfig(config, cookie);
   }
 
   async setupNewConfig(rl) {
-    const cookie = Utils.getRobloxCookie();
+    // Select Roblox version first
+    const versionInfo = await RobloxVersionSelector.selectVersion(rl);
+    this.robloxVersion = versionInfo.robloxVersion;
+    this.packageName = versionInfo.packageName;
+
+    const cookie = Utils.getRobloxCookie(this.packageName);
     const user = new RobloxUser(null, null, cookie);
     const userId = await user.fetchAuthenticatedUser();
     
@@ -525,6 +621,7 @@ class RejoinTool {
 
     console.log(`Username: ${user.username}`);
     console.log(`User ID: ${userId}`);
+    console.log(`Roblox Version: ${this.robloxVersion === 'international' ? 'Quốc tế' : 'VNG'}`);
 
     const selector = new GameSelector();
     const game = await selector.chooseGame(rl);
@@ -536,7 +633,9 @@ class RejoinTool {
       placeId: game.placeId,
       gameName: game.name,
       linkCode: game.linkCode,
-      delaySec
+      delaySec,
+      robloxVersion: this.robloxVersion,
+      packageName: this.packageName
     };
 
     Utils.saveConfig(config);
@@ -551,9 +650,12 @@ class RejoinTool {
       linkCode: config.linkCode,
     };
     this.delayMs = Math.max(15000, config.delaySec * 1000);
+    this.robloxVersion = config.robloxVersion;
+    this.packageName = config.packageName;
 
     console.clear();
     console.log(`${config.username} (${config.userId}) | ${this.game.name} (${this.game.placeId})`);
+    console.log(`Roblox: ${this.robloxVersion === 'international' ? 'Quốc tế' : 'VNG'} (${this.packageName})`);
 
     await this.startMonitoring();
   }
@@ -563,11 +665,9 @@ class RejoinTool {
       const presence = await this.user.getPresence();
       const analysis = this.statusHandler.analyzePresence(presence, this.game.placeId);
       
-      
-      GameLauncher.handleGameLaunch(analysis.shouldLaunch, this.game.placeId, this.game.linkCode);
+      GameLauncher.handleGameLaunch(analysis.shouldLaunch, this.game.placeId, this.game.linkCode, this.packageName);
       this.statusHandler.updateJoinStatus(analysis.shouldLaunch);
 
-      
       await this.runCountdown(analysis.status, analysis.info, presence);
     }
   }
@@ -580,14 +680,13 @@ class RejoinTool {
 
       console.clear();
       console.log(UIRenderer.renderTitle());
-      console.log(UIRenderer.renderTable(this.user.username, status, info, countdownStr));
+      console.log(UIRenderer.smartRender(this.user.username, status, info, countdownStr, this.robloxVersion));
       console.log("\nDebug JSON:\n" + JSON.stringify(presence, null, 2));
 
       await new Promise((r) => setTimeout(r, 1000));
     }
   }
 }
-
 
 (async () => {
   const tool = new RejoinTool();
