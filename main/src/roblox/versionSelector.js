@@ -1,6 +1,9 @@
+
+import { detectRobloxVersions, ask } from '../utils/index.js';
+
 class RobloxVersionSelector {
   static async selectVersion(rl) {
-    const versions = Utils.detectRobloxVersions();
+    const versions = detectRobloxVersions();
     
     if (Object.keys(versions).length === 0) {
       console.error("Không tìm thấy Roblox nào được cài đặt!");
@@ -28,7 +31,7 @@ class RobloxVersionSelector {
     }
 
     while (true) {
-      const choice = await Utils.ask(rl, "\nChọn phiên bản Roblox (nhập số): ");
+      const choice = await ask(rl, "\nChọn phiên bản Roblox (nhập số): ");
       const choiceNum = parseInt(choice.trim());
       
       if (choiceNum >= 1 && choiceNum <= versionList.length) {

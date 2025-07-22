@@ -1,3 +1,4 @@
+import { ask } from '../utils/index.js';
 class GameSelector {
   constructor() {
     this.GAMES = {
@@ -17,18 +18,18 @@ class GameSelector {
       console.log(`${k}. ${this.GAMES[k][1]} (${this.GAMES[k][0]})`);
     }
 
-    const ans = (await Utils.ask(rl, "Nhập số: ")).trim();
+    const ans = (await ask(rl, "Nhập số: ")).trim();
 
     if (ans === "0") {
-      const sub = (await Utils.ask(rl, "0.1 ID thủ công | 0.2 Link private redirect: ")).trim();
+      const sub = (await ask(rl, "0.1 ID thủ công | 0.2 Link private redirect: ")).trim();
       if (sub === "1") {
-        const pid = (await Utils.ask(rl, "Nhập Place ID: ")).trim();
+        const pid = (await ask(rl, "Nhập Place ID: ")).trim();
         return { placeId: pid, name: "Tùy chỉnh", linkCode: null };
       }
       if (sub === "2") {
         console.log("\nDán link redirect sau khi vào private server.");
         while (true) {
-          const link = await Utils.ask(rl, "\nDán link redirect đã chuyển hướng: ");
+          const link = await ask(rl, "\nDán link redirect đã chuyển hướng: ");
           const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
           if (!m) {
             console.log(`Link không hợp lệ!`);
