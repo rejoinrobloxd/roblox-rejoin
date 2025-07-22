@@ -1,6 +1,13 @@
 // filepath: /roblox-rejoin/roblox-rejoin/src/core/rejoinTool.js
 import readline from 'readline';
-import Utils from '../utils/index.js';
+import {
+  ensurePackages,
+  saveConfig,
+  loadConfig,
+  printConfig,
+  formatCountdown,
+  getTerminalSize
+} from '../utils/index.js';
 import RobloxUser from '../roblox/user.js';
 import GameSelector from '../roblox/gameSelector.js';
 import ConfigManager from '../config/manager.js';
@@ -19,8 +26,8 @@ class RejoinTool {
   }
 
   async start() {
-    Utils.ensureRoot();
-    Utils.enableWakeLock();
+    ensureRoot();
+    enableWakeLock();
 
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -30,14 +37,14 @@ class RejoinTool {
     const existingConfig = await ConfigManager.handleExistingConfig(rl);
     if (existingConfig) {
       rl.close();
-      const cookie = Utils.getRobloxCookie(existingConfig.packageName);
+      const cookie = getRobloxCookie(existingConfig.packageName);
       return this.initializeWithConfig(existingConfig, cookie);
     }
 
     const config = await this.setupNewConfig(rl);
     rl.close();
 
-    const cookie = Utils.getRobloxCookie(config.packageName);
+    const cookie = getRobloxCookie(config.packageName);
     return this.initializeWithConfig(config, cookie);
   }
 
@@ -112,7 +119,7 @@ class RejoinTool {
     const delaySec = Math.floor(this.delayMs / 1000);
     
     for (let i = delaySec; i >= 0; i--) {
-      const countdownStr = Utils.formatCountdown(i);
+      const countdownStr = formatCountdown(i);
 
       console.clear();
       console.log(UIRenderer.renderTitle());
