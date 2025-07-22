@@ -1,3 +1,27 @@
+// Detect installed Roblox versions (Android)
+export function detectRobloxVersions() {
+  const versions = {};
+  try {
+    execSync("pm list packages | grep com.roblox.client", { stdio: 'pipe' });
+    versions.international = {
+      packageName: "com.roblox.client",
+      displayName: "Roblox Quốc tế"
+    };
+  } catch {}
+  try {
+    execSync("pm list packages | grep com.roblox.client.vnggames", { stdio: 'pipe' });
+    versions.vng = {
+      packageName: "com.roblox.client.vnggames",
+      displayName: "Roblox VNG"
+    };
+  } catch {}
+  return versions;
+}
+
+// Ask a question using readline
+export function ask(rl, msg) {
+  return new Promise((r) => rl.question(msg, r));
+}
 // Kill an Android app by package name
 export function killApp(packageName) {
   exec(`am force-stop ${packageName}`);

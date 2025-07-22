@@ -1,9 +1,17 @@
+
+import {
+  loadConfig,
+  printConfig,
+  detectRobloxVersions,
+  ask
+} from '../utils/index.js';
+
 class ConfigManager {
   static async handleExistingConfig(rl) {
-    const saved = Utils.loadConfig();
+    const saved = loadConfig();
     if (!saved) return null;
 
-    const versions = Utils.detectRobloxVersions();
+    const versions = detectRobloxVersions();
     let packageStillExists = false;
     
     for (const [key, version] of Object.entries(versions)) {
@@ -18,8 +26,8 @@ class ConfigManager {
       return null;
     }
 
-    Utils.printConfig(saved);
-    const useOld = (await Utils.ask(rl, "Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
+    printConfig(saved);
+    const useOld = (await ask(rl, "Dùng lại config trước đó? (y/N): ")).trim().toLowerCase();
     
     if (useOld === "y") {
       return saved;
@@ -29,7 +37,7 @@ class ConfigManager {
 
   static async getDelayFromUser(rl) {
     while (true) {
-      const delaySec = parseInt(await Utils.ask(rl, "Delay check (giây, 15-120): ")) || 1;
+      const delaySec = parseInt(await ask(rl, "Delay check (giây, 15-120): ")) || 1;
       if (delaySec >= 15 && delaySec <= 120) {
         return delaySec;
       }
