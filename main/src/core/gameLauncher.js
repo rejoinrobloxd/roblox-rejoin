@@ -1,8 +1,13 @@
+
+import { killApp, launch } from '../utils/index.js';
+
 class GameLauncher {
   static handleGameLaunch(shouldLaunch, placeId, linkCode, packageName) {
     if (shouldLaunch) {
-      Utils.killApp(packageName);
-      Utils.launch(placeId, linkCode, packageName);
+      killApp(packageName);
+      launch(placeId, linkCode, packageName);
     }
   }
 }
+
+export default GameLauncher;

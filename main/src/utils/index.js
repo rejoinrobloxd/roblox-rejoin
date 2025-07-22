@@ -1,3 +1,17 @@
+// Kill an Android app by package name
+export function killApp(packageName) {
+  exec(`am force-stop ${packageName}`);
+}
+
+// Launch Roblox game on Android
+export function launch(placeId, linkCode = null, packageName) {
+  const url = linkCode
+    ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
+    : `roblox://placeID=${placeId}`;
+  console.log(`Đang mở: ${url} (${packageName})`);
+  if (linkCode) console.log(`Đã join bằng linkCode: ${linkCode}`);
+  exec(`am start -a android.intent.action.VIEW -d "${url}"`);
+}
 // Ensure the script is running as root (for Termux/Android)
 export function ensureRoot() {
   try {
