@@ -27,20 +27,13 @@ export function killApp(packageName) {
   exec(`am force-stop ${packageName}`);
 }
 
-// Launch Roblox game on Android (fixed version)
 export function launch(placeId, linkCode = null, packageName) {
   const url = linkCode
     ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
     : `roblox://placeID=${placeId}`;
-
   console.log(`Đang mở: ${url} (${packageName})`);
   if (linkCode) console.log(`Đã join bằng linkCode: ${linkCode}`);
-
-  // 👉 Dùng explicit intent để không hiện "Open with"
-  const activity = "com.roblox.client.startup.ActivitySplash";
-  const intent = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}"`;
-
-  exec(intent);
+  exec(`am start -a android.intent.action.VIEW -d "${url}"`);
 }
 
 
