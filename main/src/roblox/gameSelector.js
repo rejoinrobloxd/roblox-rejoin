@@ -28,6 +28,8 @@ class GameSelector {
       }
       if (sub === "2") {
         console.log("\nDán link redirect sau khi vào private server.");
+        console.log("\nLink này có dạng: https://www.roblox.com/games/<place-id>/<name>?privateServerLinkCode=<code>");
+        console.log("\nVí dụ: https://www.roblox.com/games/126884695634066/Grow-a-Garden?privateServerLinkCode=3349864672573032684357456732567");
         while (true) {
           const link = await ask(rl, "\nDán link redirect đã chuyển hướng: ");
           const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
