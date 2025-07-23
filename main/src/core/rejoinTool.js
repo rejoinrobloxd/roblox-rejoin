@@ -9,7 +9,7 @@ import {
   ensureRoot,
   enableWakeLock,
   getRobloxCookie
-} from '../utils/index.js'; // 👈 Không còn import ensurePackages ở đây nữa
+} from '../utils/index.js';
 
 import RobloxUser from '../roblox/user.js';
 import GameSelector from '../roblox/gameSelector.js';
