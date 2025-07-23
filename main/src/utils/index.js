@@ -33,9 +33,21 @@ export function launch(placeId, linkCode = null, packageName) {
     : `roblox://placeID=${placeId}`;
   console.log(`Đang mở: ${url} (${packageName})`);
   if (linkCode) console.log(`Đã join bằng linkCode: ${linkCode}`);
-  exec(`am start -a android.intent.action.VIEW -d "${url}"`);
-}
 
+  // Ép đúng activity theo bản Roblox
+  let activity;
+  if (packageName === "com.roblox.client") {
+    activity = "com.roblox.client.ActivityProtocolLaunch";
+  } else if (packageName === "com.roblox.client.vnggames") {
+    activity = "com.roblox.client.ActivityProtocolLaunch";
+  } else {
+    console.error(`Không rõ activity cho package: ${packageName}`);
+    return;
+  }
+
+  const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}"`;
+  exec(command);
+}
 
 // Ensure the script is running as root (for Termux/Android)
 export function ensureRoot() {
