@@ -101,32 +101,7 @@ import Table from "cli-table3";
 import figlet from "figlet";
 import _boxen from "boxen";
 const boxen = _boxen.default || _boxen;
-
 const CONFIG_PATH = path.join(path.dirname(new URL(import.meta.url).pathname), "config.json");
-
-export function ensurePackages() {
-  const requiredPackages = ["axios", "cli-table3", "figlet", "boxen"];
-  const missingPackages = [];
-
-  requiredPackages.forEach((pkg) => {
-    try {
-      require.resolve(pkg);
-    } catch {
-      missingPackages.push(pkg);
-    }
-  });
-
-  if (missingPackages.length > 0) {
-    console.log(`Đang cài các package còn thiếu: ${missingPackages.join(", ")}`);
-    try {
-      execSync(`npm install ${missingPackages.join(" ")}`, { stdio: "inherit" });
-    } catch (e) {
-      console.error(`Lỗi khi cài package:`, e.message);
-      process.exit(1);
-    }
-  }
-}
-
 
 export function saveConfig(config) {
   try {
