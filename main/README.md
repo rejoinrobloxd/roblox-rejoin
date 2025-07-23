@@ -44,7 +44,7 @@ npm install
 ## Usage
 To start the application, run:
 ```
-node src/cli/index.js
+node main.js
 ```
 
 Follow the prompts to authenticate, select a game, and configure your settings.
