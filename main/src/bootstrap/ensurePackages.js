@@ -15,8 +15,19 @@ export function ensurePackages() {
 
   if (missing.length > 0) {
     console.log("🔧 Cài thiếu package. Đang cài:", missing.join(", "));
+
+    // Gán lại PATH thủ công phòng trường hợp chạy trong su không có npm
+    const customPath = process.env.PATH || "";
+    const termuxPath = "/data/data/com.termux/files/usr/bin";
+    const fullPath = customPath.includes(termuxPath)
+      ? customPath
+      : `${customPath}:${termuxPath}`;
+
     try {
-      execSync(`npm install ${missing.join(" ")}`, { stdio: "inherit" });
+      execSync(`npm install ${missing.join(" ")}`, {
+        stdio: "inherit",
+        env: { ...process.env, PATH: fullPath },
+      });
     } catch (e) {
       console.error("❌ Không thể cài package:", e.message);
       process.exit(1);
