@@ -1,7 +1,6 @@
 // filepath: /roblox-rejoin/roblox-rejoin/src/core/rejoinTool.js
 import readline from 'readline';
 import {
-  ensurePackages,
   saveConfig,
   loadConfig,
   printConfig,
@@ -10,7 +9,8 @@ import {
   ensureRoot,
   enableWakeLock,
   getRobloxCookie
-} from '../utils/index.js';
+} from '../utils/index.js'; // 👈 Không còn import ensurePackages ở đây nữa
+
 import RobloxUser from '../roblox/user.js';
 import GameSelector from '../roblox/gameSelector.js';
 import ConfigManager from '../config/manager.js';
