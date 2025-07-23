@@ -19,11 +19,18 @@ export function ensurePackages() {
     const npmCache = "/data/data/com.termux/files/usr/tmp/.npm-cache";
     const PATH = `${process.env.PATH}:/data/data/com.termux/files/usr/bin`;
 
-    try {
-      if (!fs.existsSync(npmCache)) {
-        fs.mkdirSync(npmCache, { recursive: true });
+    // 🔁 Xoá cache lỗi nếu có
+    if (fs.existsSync(npmCache)) {
+      try {
+        fs.rmSync(npmCache, { recursive: true, force: true });
+        console.log("🧹 Đã xoá cache npm lỗi");
+      } catch (e) {
+        console.error("❌ Không thể xoá cache:", e.message);
       }
+    }
+    fs.mkdirSync(npmCache, { recursive: true });
 
+    try {
       execSync(
         `npm install ${missing.join(" ")} --prefer-offline --no-audit --no-fund`,
         {
