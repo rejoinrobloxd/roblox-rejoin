@@ -73,5 +73,20 @@ fi
 
 # 🚀 Chạy main.js trong repo
 cd "$WORK_DIR"
+
+# 📦 Tự động cài package nếu chưa có node_modules
+if [ ! -d "$REPO_DIR/node_modules" ]; then
+    echo "📦 Chưa có thư viện, đang chạy npm install..."
+    cd "$REPO_DIR"
+    npm install
+    if [ $? -ne 0 ]; then
+        echo "❌ Lỗi khi cài npm package!"
+        exit 1
+    fi
+    echo "✅ Đã cài xong npm packages!"
+fi
+
+# 👉 Quay lại folder src và chạy main.js
+cd "$WORK_DIR"
 echo "🚀 Đang chạy main.js từ repo..."
 "$NODE_PATH" main.js
