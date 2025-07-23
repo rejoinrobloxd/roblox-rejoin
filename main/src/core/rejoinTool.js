@@ -1,5 +1,4 @@
 // filepath: /roblox-rejoin/roblox-rejoin/src/core/rejoinTool.js
-ensurePackages();
 import readline from 'readline';
 import {
   ensurePackages,
