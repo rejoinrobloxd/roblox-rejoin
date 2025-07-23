@@ -21,6 +21,15 @@ import UIRenderer from '../ui/renderer.js';
 
 class RejoinTool {
   constructor() {
+    ensurePackages();
+    this.user = null;
+    this.game = null;
+    this.delayMs = 60000;
+    this.statusHandler = new StatusHandler();
+    this.robloxVersion = null;
+    this.packageName = null;
+  }
+  constructor() {
     this.user = null;
     this.game = null;
     this.delayMs = 60000;
