@@ -107,17 +107,26 @@ class RejoinTool {
     await this.startMonitoring();
   }
 
-  async startMonitoring() {
-    while (true) {
-      const presence = await this.user.getPresence();
-      const analysis = this.statusHandler.analyzePresence(presence, this.game.placeId);
-      
-      GameLauncher.handleGameLaunch(analysis.shouldLaunch, this.game.placeId, this.game.linkCode, this.packageName);
-      this.statusHandler.updateJoinStatus(analysis.shouldLaunch);
+async startMonitoring() {
+  while (true) {
+    const presence = await this.user.getPresence();
+    const analysis = this.statusHandler.analyzePresence(presence, this.game.placeId);
 
-      await this.runCountdown(analysis.status, analysis.info, presence);
+    if (analysis.shouldLaunch) {
+      GameLauncher.handleGameLaunch(
+        analysis.shouldLaunch,
+        this.game.placeId,
+        this.game.linkCode,
+        this.packageName,
+        analysis.rejoinOnly
+      );
+      this.statusHandler.updateJoinStatus(analysis.shouldLaunch);
     }
+
+    await this.runCountdown(analysis.status, analysis.info, presence);
   }
+}
+
 
   async runCountdown(status, info, presence) {
     const delaySec = Math.floor(this.delayMs / 1000);
