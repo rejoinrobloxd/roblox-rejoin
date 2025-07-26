@@ -1,3 +1,14 @@
+import { execSync, exec } from "child_process";
+import fs from "fs";
+import path from "path";
+import os from "os";
+import axios from "axios";
+import Table from "cli-table3";
+import figlet from "figlet";
+import _boxen from "boxen";
+const boxen = _boxen.default || _boxen;
+const CONFIG_PATH = path.join(path.dirname(new URL(import.meta.url).pathname), "config.json");
+
 // Detect installed Roblox versions (Android)
 export function detectRobloxVersions() {
   const versions = {};
@@ -22,6 +33,7 @@ export function detectRobloxVersions() {
 export function ask(rl, msg) {
   return new Promise((r) => rl.question(msg, r));
 }
+
 // Kill an Android app by package name
 export function killApp(packageName) {
   exec(`am force-stop ${packageName}`);
@@ -45,7 +57,7 @@ export function launch(placeId, linkCode = null, packageName) {
     return;
   }
 
-  const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}"`;
+  const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}" --activity-clear-top`;
   exec(command);
 }
 
@@ -104,17 +116,6 @@ export function getRobloxCookie(packageName) {
   if (!cookieValue.startsWith("_")) cookieValue = "_" + cookieValue;
   return `.ROBLOSECURITY=${cookieValue}`;
 }
-
-import { execSync, exec } from "child_process";
-import fs from "fs";
-import path from "path";
-import os from "os";
-import axios from "axios";
-import Table from "cli-table3";
-import figlet from "figlet";
-import _boxen from "boxen";
-const boxen = _boxen.default || _boxen;
-const CONFIG_PATH = path.join(path.dirname(new URL(import.meta.url).pathname), "config.json");
 
 export function saveConfig(config) {
   try {
