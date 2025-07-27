@@ -3,7 +3,7 @@
 # ⚙️ Cấu hình
 REPO_URL="https://github.com/NhinQuanhLanCuoi9999/roblox-rejoin"
 REPO_DIR="$HOME/roblox-rejoin"
-WORK_DIR="$REPO_DIR/main/src"
+WORK_DIR="$REPO_DIR" # ← Đổi chỗ chạy về thẳng gốc repo luôn
 LOADER_PATH="/data/data/com.termux/files/usr/bin/loader"
 
 # 🧠 Tạo alias 'loader' nếu chưa có
@@ -71,9 +71,6 @@ if [ -n "$SU_PATH" ]; then
     source ~/.bashrc 2>/dev/null || true
 fi
 
-# 🚀 Chạy main.js trong repo
-cd "$WORK_DIR"
-
 # 📦 Tự động cài package nếu chưa có node_modules
 if [ ! -d "$REPO_DIR/node_modules" ]; then
     echo "📦 Chưa có thư viện, đang chạy npm install..."
@@ -86,7 +83,7 @@ if [ ! -d "$REPO_DIR/node_modules" ]; then
     echo "✅ Đã cài xong npm packages!"
 fi
 
-# 👉 Quay lại folder src và chạy main.js
+# 🚀 Chạy multi-beta.mjs ở gốc repo
 cd "$WORK_DIR"
-echo "🚀 Đang chạy main.js từ repo..."
-"$NODE_PATH" main.js
+echo "🚀 Đang chạy multi-beta.mjs từ repo..."
+"$NODE_PATH" multi-beta.mjs
