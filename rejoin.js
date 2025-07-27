@@ -78,7 +78,7 @@ class Utils {
       return;
     }
 
-  const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}"`;
+  const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}" --activity-clear-top`;
   exec(command);
 }
 
@@ -341,7 +341,8 @@ class StatusHandler {
       return {
         status: "Không rõ",
         info: "Không lấy được trạng thái hoặc thiếu rootPlaceId",
-        shouldLaunch: false
+        shouldLaunch: false,
+        rejoinOnly: false
       };
     }
 
@@ -351,7 +352,8 @@ class StatusHandler {
       return {
         status: "Offline",
         info: `User offline! ${shouldLaunch ? 'Tiến hành rejoin! 🚀' : 'Đợi thêm chút để tránh spam ⏰'}`,
-        shouldLaunch
+        shouldLaunch,
+        rejoinOnly: false // Offline thì kill app và mở lại bình thường
       };
     }
 
@@ -361,7 +363,8 @@ class StatusHandler {
       return {
         status: "Không online",
         info: `User không trong game${shouldLaunch ? '. Đã mở lại game! 🎮' : ' (đợi thêm chút để tránh spam) ⏰'}`,
-        shouldLaunch
+        shouldLaunch,
+        rejoinOnly: false
       };
     }
 
@@ -369,14 +372,16 @@ class StatusHandler {
       return {
         status: "Sai map",
         info: `User đang trong game nhưng sai rootPlaceId (${presence.rootPlaceId}). Đã rejoin đúng map! 🎯`,
-        shouldLaunch: true
+        shouldLaunch: true,
+        rejoinOnly: true // Đang trong game khác, chỉ rejoin không kill
       };
     }
 
     return {
       status: "Online ✅",
       info: "Đang ở đúng game.",
-      shouldLaunch: false
+      shouldLaunch: false,
+      rejoinOnly: false
     };
   }
 
@@ -536,9 +541,14 @@ class UIRenderer {
 }
 
 class GameLauncher {
-  static handleGameLaunch(shouldLaunch, placeId, linkCode, packageName) {
+  static handleGameLaunch(shouldLaunch, placeId, linkCode, packageName, rejoinOnly = false) {
     if (shouldLaunch) {
-      Utils.killApp(packageName);
+      if (!rejoinOnly) {
+        Utils.killApp(packageName);
+      } else {
+        console.log("⚠️ [RejoinOnly] Không kill app, mở bằng roblox:// trực tiếp.");
+      }
+
       Utils.launch(placeId, linkCode, packageName);
     }
   }
@@ -679,8 +689,16 @@ class RejoinTool {
       const presence = await this.user.getPresence();
       const analysis = this.statusHandler.analyzePresence(presence, this.game.placeId);
       
-      GameLauncher.handleGameLaunch(analysis.shouldLaunch, this.game.placeId, this.game.linkCode, this.packageName);
-      this.statusHandler.updateJoinStatus(analysis.shouldLaunch);
+      if (analysis.shouldLaunch) {
+        GameLauncher.handleGameLaunch(
+          analysis.shouldLaunch,
+          this.game.placeId,
+          this.game.linkCode,
+          this.packageName,
+          analysis.rejoinOnly
+        );
+        this.statusHandler.updateJoinStatus(analysis.shouldLaunch);
+      }
 
       await this.runCountdown(analysis.status, analysis.info, presence);
     }
