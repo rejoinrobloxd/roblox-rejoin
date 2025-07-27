@@ -395,6 +395,30 @@ class StatusHandler {
 
 
 class UIRenderer {
+static getSystemStats() {
+  const cpus = os.cpus();
+  const idle = cpus.reduce((acc, cpu) => acc + cpu.times.idle, 0);
+  const total = cpus.reduce((acc, cpu) => {
+    return acc + cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.irq + cpu.times.idle;
+  }, 0);
+
+  const cpuUsage = (100 - (idle / total) * 100).toFixed(1);
+
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedMem = totalMem - freeMem;
+
+  // Hiển thị chuẩn xác hơn, ví dụ: 1.13GB/1.45GB
+  const totalGB = (totalMem / (1024 ** 3)).toFixed(2);
+  const usedGB = (usedMem / (1024 ** 3)).toFixed(2);
+
+  return {
+    cpuUsage,
+    ramUsage: `${usedGB}GB/${totalGB}GB`
+  };
+}
+
+
   static renderTitle() {
     const title = figlet.textSync("Dawn Rejoin", {
       font: "Standard",
@@ -459,39 +483,44 @@ class UIRenderer {
     return minWidths;
   }
 
-  static renderTable(username, status, info, countdown, robloxVersion) {
-    const { width: terminalWidth } = this.getTerminalSize();
-    const colWidths = this.calculateColumnWidths(terminalWidth);
+static renderTable(username, status, info, countdown, robloxVersion) {
+  const { width: terminalWidth } = this.getTerminalSize();
+  const colWidths = this.calculateColumnWidths(terminalWidth);
+  const stats = this.getSystemStats();
 
-    const table = new Table({
-      head: ["User", "Status", "Info", "Time", "Delay"],
-      colWidths: [
-        colWidths.username,
-        colWidths.status,
-        colWidths.info,
-        colWidths.time,
-        colWidths.countdown
-      ],
-      wordWrap: true,
-      style: { 
-        head: ["cyan"], 
-        border: ["gray"]
-      }
-    });
+  const cpuRamLine = `| CPU: ${stats.cpuUsage}% | RAM: ${stats.ramUsage} |`;
+  const centeredCpuRamLine = cpuRamLine.padStart(
+    Math.floor((terminalWidth + cpuRamLine.length) / 2)
+  );
 
-    // Add Roblox version info to username
-    const userInfo = `${username}\n(${robloxVersion === 'international' ? 'Quốc tế' : 'VNG'})`;
+  const table = new Table({
+    head: ["User", "Status", "Info", "Time", "Delay"],
+    colWidths: [
+      colWidths.username,
+      colWidths.status,
+      colWidths.info,
+      colWidths.time,
+      colWidths.countdown
+    ],
+    wordWrap: true,
+    style: {
+      head: ["cyan"],
+      border: ["gray"]
+    }
+  });
 
-    table.push([
-      userInfo,
-      status,
-      info,
-      new Date().toLocaleTimeString(),
-      countdown
-    ]);
+  const userInfo = `${username}\n(${robloxVersion === 'international' ? 'Quốc tế' : 'VNG'})`;
 
-    return table.toString();
-  }
+  table.push([
+    userInfo,
+    status,
+    info,
+    new Date().toLocaleTimeString(),
+    countdown
+  ]);
+
+  return `${centeredCpuRamLine}\n${table.toString()}`;
+}
 
   static renderCompactTable(username, status, info, countdown, robloxVersion) {
     // For very small screens, still use table but with smaller columns
