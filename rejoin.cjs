@@ -614,13 +614,45 @@ class MultiRejoinTool {
     }
 
     console.log("\n📦 Tìm thấy các packages:");
+    console.log("0. 🚀 Setup tất cả packages");
+    const packageList = [];
     Object.values(packages).forEach((pkg, index) => {
       console.log(`${index + 1}. ${pkg.displayName} (${pkg.packageName})`);
+      packageList.push({ packageName: Object.keys(packages)[index], packageInfo: pkg });
     });
+
+    const choice = await Utils.ask(rl, "\nChọn packages để setup (0 để setup tất cả, hoặc số cách nhau bởi khoảng trắng): ");
+    let selectedPackages = [];
+
+    if (choice.trim() === "0") {
+      selectedPackages = packageList;
+      console.log("🚀 Sẽ setup tất cả packages!");
+    } else {
+      const indices = choice
+        .trim()
+        .split(/\s+/)
+        .map(str => parseInt(str) - 1)
+        .filter(i => i >= 0 && i < packageList.length);
+
+      if (indices.length === 0) {
+        console.log("❌ Lựa chọn không hợp lệ!");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await this.setupPackages(rl);
+        return;
+      }
+
+      selectedPackages = indices.map(i => packageList[i]);
+      console.log(`🎯 Sẽ setup các packages:`);
+      selectedPackages.forEach((pkg, i) => {
+        console.log(`  - ${i + 1}. ${pkg.packageInfo.displayName}`);
+      });
+    }
 
     const configs = Utils.loadMultiConfigs();
     
-    for (const [packageName, packageInfo] of Object.entries(packages)) {
+    for (const { packageName, packageInfo } of selectedPackages) {
+      console.clear();
+      console.log(UIRenderer.renderTitle());
       console.log(`\n⚙️ Cấu hình cho ${packageInfo.displayName}`);
       
       const cookie = Utils.getRobloxCookie(packageName);
