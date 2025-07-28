@@ -83,7 +83,7 @@ if [ ! -d "$REPO_DIR/node_modules" ]; then
     echo "✅ Đã cài xong npm packages!"
 fi
 
-# 🚀 Chạy multi-beta.mjs ở gốc repo
+# 🚀 Chạy multi-beta.cjs ở gốc repo
 cd "$WORK_DIR"
-echo "🚀 Đang chạy multi-beta.mjs từ repo..."
-"$NODE_PATH" multi-beta.mjs
+echo "🚀 Đang chạy multi-beta.cjs từ repo..."
+"$NODE_PATH" multi-beta.cjs
