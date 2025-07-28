@@ -56,16 +56,27 @@ class Utils {
     }
   }
 
-  static killApp(packageName) {
-    exec(`am force-stop ${packageName}`);
+  // FIX: Thêm async và execSync để đồng bộ
+  static async killApp(packageName) {
+    try {
+      console.log(`💀 [${packageName}] Đang kill app...`);
+      execSync(`am force-stop ${packageName}`, { stdio: 'pipe' });
+      console.log(`✅ [${packageName}] Đã kill thành công!`);
+      // Đợi 1 giây để đảm bảo app đã đóng hoàn toàn
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (e) {
+      console.error(`❌ [${packageName}] Lỗi khi kill app: ${e.message}`);
+    }
   }
 
-  static launch(placeId, linkCode = null, packageName) {
+  // FIX: Thêm async và execSync
+  static async launch(placeId, linkCode = null, packageName) {
     const url = linkCode
       ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
       : `roblox://placeID=${placeId}`;
-    console.log(`🚀 Đang mở: ${url} (${packageName})`);
-    if (linkCode) console.log(`✨ Đã join bằng linkCode: ${linkCode}`);
+    
+    console.log(`🚀 [${packageName}] Đang mở: ${url}`);
+    if (linkCode) console.log(`✨ [${packageName}] Đã join bằng linkCode: ${linkCode}`);
 
     let activity;
     if (packageName === "com.roblox.client") {
@@ -73,12 +84,17 @@ class Utils {
     } else if (packageName === "com.roblox.client.vnggames") {
       activity = "com.roblox.client.ActivityProtocolLaunch";
     } else {
-      // Generic activity for other Roblox packages
       activity = "com.roblox.client.ActivityProtocolLaunch";
     }
 
     const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}" --activity-clear-top`;
-    exec(command);
+    
+    try {
+      execSync(command, { stdio: 'pipe' });
+      console.log(`✅ [${packageName}] Launch command executed!`);
+    } catch (e) {
+      console.error(`❌ [${packageName}] Launch failed: ${e.message}`);
+    }
   }
 
   static ask(rl, msg) {
@@ -117,7 +133,6 @@ class Utils {
           const packageName = match[1];
           let displayName = packageName;
           
-          // Set display names
           if (packageName === 'com.roblox.client') {
             displayName = 'Roblox Quốc tế 🌍';
           } else if (packageName === 'com.roblox.client.vnggames') {
@@ -140,7 +155,7 @@ class Utils {
   }
 
   static getRobloxCookie(packageName) {
-    console.log(`🍪 Đang lấy cookie ROBLOSECURITY từ ${packageName}...`);
+    console.log(`🍪 [${packageName}] Đang lấy cookie ROBLOSECURITY...`);
     let raw;
     try {
       raw = execSync(
@@ -152,20 +167,41 @@ class Utils {
           `su -c sh -c 'cat /data/data/${packageName}/app_webview/Default/Cookies | strings | grep ROBLOSECURITY'`
         ).toString();
       } catch (err) {
-        console.error(`❌ Không thể đọc cookie từ ${packageName} bằng cả 2 cách.`);
+        console.error(`❌ [${packageName}] Không thể đọc cookie bằng cả 2 cách.`);
         return null;
       }
     }
 
     const match = raw.match(/\.ROBLOSECURITY_([^\s\/]+)/);
     if (!match) {
-      console.error(`❌ Không tìm được cookie ROBLOSECURITY từ ${packageName}!`);
+      console.error(`❌ [${packageName}] Không tìm được cookie ROBLOSECURITY!`);
       return null;
     }
 
     let cookieValue = match[1].trim();
     if (!cookieValue.startsWith("_")) cookieValue = "_" + cookieValue;
     return `.ROBLOSECURITY=${cookieValue}`;
+  }
+}
+
+class GameLauncher {
+  // FIX: Thêm async và await cho killApp/launch
+  static async handleGameLaunch(shouldLaunch, placeId, linkCode, packageName, rejoinOnly = false) {
+    if (shouldLaunch) {
+      console.log(`🎯 [${packageName}] Starting launch process...`);
+      
+      if (!rejoinOnly) {
+        // Đồng bộ kill app trước
+        await Utils.killApp(packageName);
+      } else {
+        console.log(`⚠️ [${packageName}] RejoinOnly mode - không kill app`);
+      }
+
+      // Sau đó mới launch
+      await Utils.launch(placeId, linkCode, packageName);
+      
+      console.log(`✅ [${packageName}] Launch process completed!`);
+    }
   }
 }
 
@@ -288,31 +324,32 @@ class StatusHandler {
       return {
         status: "Không rõ ❓",
         info: "Không lấy được trạng thái hoặc thiếu rootPlaceId",
-        shouldLaunch: false,
+        shouldLaunch: true, // Always try to rejoin when presence is unclear
         rejoinOnly: false
       };
     }
 
+    // User is offline or away
     if (presence.userPresenceType === 0 || presence.userPresenceType === 1) {
-      const shouldLaunch = !this.hasLaunched || now - this.joinedAt > 30000;
       return {
-        status: "Offline 💤",
-        info: `User offline! ${shouldLaunch ? 'Tiến hành rejoin! 🚀' : 'Đợi thêm chút để tránh spam ⏰'}`,
-        shouldLaunch,
+        status: "Offline 💤", 
+        info: "User offline! Tiến hành rejoin! 🚀",
+        shouldLaunch: true, // Always rejoin when offline
         rejoinOnly: false
       };
     }
 
+    // User is not in game (online but not playing)
     if (presence.userPresenceType !== 2) {
-      const shouldLaunch = !this.hasLaunched || now - this.joinedAt > 30000;
       return {
         status: "Không online 😴",
-        info: `User không trong game${shouldLaunch ? '. Đã mở lại game! 🎮' : ' (đợi thêm chút để tránh spam) ⏰'}`,
-        shouldLaunch,
+        info: "User không trong game. Đã mở lại game! 🎮",
+        shouldLaunch: true, // Always rejoin when not in game
         rejoinOnly: false
       };
     }
 
+    // User is in game but wrong place
     if (!presence.rootPlaceId || presence.rootPlaceId.toString() !== targetRootPlaceId.toString()) {
       return {
         status: "Sai map 🗺️",
@@ -322,6 +359,7 @@ class StatusHandler {
       };
     }
 
+    // User is in correct game
     return {
       status: "Online ✅",
       info: "Đang ở đúng game 🎮",
@@ -521,24 +559,6 @@ class UIRenderer {
     }
 
     return table.toString();
-  }
-}
-
-
-
-
-class GameLauncher {
-  static handleGameLaunch(shouldLaunch, placeId, linkCode, packageName, rejoinOnly = false) {
-    if (shouldLaunch) {
-      if (!rejoinOnly) {
-        Utils.killApp(packageName);
-        console.log(`💀 Killed ${packageName}`);
-      } else {
-        console.log(`⚠️ [RejoinOnly] Không kill app, mở bằng roblox:// trực tiếp.`);
-      }
-
-      Utils.launch(placeId, linkCode, packageName);
-    }
   }
 }
 
