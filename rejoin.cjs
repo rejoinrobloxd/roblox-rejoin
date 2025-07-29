@@ -422,7 +422,7 @@ class UIRenderer {
 ╚══════════════════════════════════════╝`;
 
     try {
-      const title = figlet.textSync("Multi Dawn", {
+      const title = figlet.textSync("Dawn Rejoin", {
         font: "Small",
         horizontalLayout: "fitted",
         verticalLayout: "fitted"
