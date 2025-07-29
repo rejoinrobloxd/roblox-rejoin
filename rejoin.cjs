@@ -182,6 +182,21 @@ class Utils {
     if (!cookieValue.startsWith("_")) cookieValue = "_" + cookieValue;
     return `.ROBLOSECURITY=${cookieValue}`;
   }
+
+  static async curlPastebinVisits() {
+    try {
+      const res = await axios.get("https://pastebin.com/Q9yk1GNq");
+      const html = res.data;
+      // Sửa lại regex: chỉ cần escape đúng cho regex literal
+      const match = html.match(/<div class="visits"[^>]*>\s*([\d,.]+)\s*<\/div>/);
+      if (match && match[1]) {
+        return match[1].replace(/,/g, '');
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
 }
 
 class GameLauncher {
@@ -402,8 +417,8 @@ class UIRenderer {
   static renderTitle() {
     const fallbackTitle = `
 ╔══════════════════════════════════════╗
-║        🚀 MULTI DAWN REJOIN 🚀      ║
-║           Auto Rejoin Tool           ║
+║        🚀  DAWN REJOIN 🚀           ║
+║    Bản quyền thuộc về The Real Dawn  ║
 ╚══════════════════════════════════════╝`;
 
     try {
@@ -413,7 +428,7 @@ class UIRenderer {
         verticalLayout: "fitted"
       });
 
-      return boxen(title + "\n🚀 REJOIN TOOL 🚀", {
+      return boxen(title + "\nBản quyền thuộc về The Real Dawn", {
         padding: 1,
         borderColor: "cyan",
         borderStyle: "round",
@@ -573,14 +588,21 @@ class MultiRejoinTool {
     Utils.enableWakeLock();
 
     console.clear();
+    let visitCount = null;
+    try {
+      visitCount = await Utils.curlPastebinVisits();
+    } catch {}
     try {
       console.log(UIRenderer.renderTitle());
     } catch (e) {
       console.log(`
 ╔══════════════════════════════════════╗
-║        🚀 MULTI DAWN REJOIN 🚀        ║
-║           Auto Rejoin Tool           ║
+║        🚀   DAWN REJOIN   🚀        ║
+║    Bản quyền thuộc về The Real Dawn  ║
 ╚══════════════════════════════════════╝`);
+    }
+    if (visitCount) {
+      console.log(`\nTổng lượt chạy: ${visitCount}`);
     }
     console.log("\n🎯 Multi-Instance Roblox Rejoin Tool");
     console.log("1. 🚀 Bắt đầu auto rejoin");
@@ -867,10 +889,10 @@ async runMultiInstanceLoop() {
       try {
         console.log(UIRenderer.renderTitle());
       } catch (e) {
-        console.log(`
+      console.log(`
 ╔══════════════════════════════════════╗
-║        🚀 MULTI DAWN REJOIN 🚀        ║
-║           Auto Rejoin Tool           ║
+║        🚀   DAWN REJOIN   🚀        ║
+║    Bản quyền thuộc về The Real Dawn  ║
 ╚══════════════════════════════════════╝`);
       }
 
