@@ -559,6 +559,7 @@ class UIRenderer {
         packageDisplay = packageName;
       }
 
+      // Ẩn username chỉ hiện 3 ký tự cuối
       const maskedUsername = config.username.length > 3 ?
         '*'.repeat(config.username.length - 3) + config.username.slice(-3) :
         config.username;
@@ -757,7 +758,12 @@ async startAutoRejoin(rl) {
       packageDisplay = packageName;
     }
 
-    console.log(`${index}. ${packageDisplay} (${config.username})`);
+    // Ẩn username chỉ hiện 3 ký tự cuối
+    const maskedUsername = config.username.length > 3 ?
+      '*'.repeat(config.username.length - 3) + config.username.slice(-3) :
+      config.username;
+
+    console.log(`${index}. ${packageDisplay} (${maskedUsername})`);
     packageList.push(packageName);
     index++;
   }
