@@ -143,30 +143,71 @@ class Utils {
 
   static async takeScreenshot() {
     try {
-      const img = await screenshot();
-      const timestamp = Date.now();
+      // Sử dụng screencap của Android với quyền root
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `screenshot_${timestamp}.png`;
       const filepath = path.join(__dirname, filename);
       
-      fs.writeFileSync(filepath, img);
+      // Chạy screencap với su
+      const screencapCommand = `su -c "screencap -p"`;
+      const imgBuffer = execSync(screencapCommand, { stdio: 'pipe' });
+      
+      fs.writeFileSync(filepath, imgBuffer);
       console.log(`📸 Đã chụp ảnh: ${filename}`);
       return filepath;
     } catch (e) {
-      console.error(`❌ Lỗi khi chụp ảnh: ${e.message}`);
-      // Thử cách khác nếu screenshot-desktop không hoạt động
+      console.error(`❌ Lỗi khi chụp ảnh với screencap: ${e.message}`);
+      
+      // Fallback: thử với screenshot-desktop
       try {
-        const timestamp = Date.now();
-        const filename = `screenshot_${timestamp}.txt`;
+        const img = await screenshot();
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `screenshot_${timestamp}.png`;
         const filepath = path.join(__dirname, filename);
         
-        // Tạo file text thay thế
-        const content = `Screenshot placeholder - ${new Date().toISOString()}`;
-        fs.writeFileSync(filepath, content);
-        console.log(`📝 Đã tạo file placeholder: ${filename}`);
+        fs.writeFileSync(filepath, img);
+        console.log(`📸 Đã chụp ảnh (fallback): ${filename}`);
         return filepath;
       } catch (e2) {
-        console.error(`❌ Không thể tạo file placeholder: ${e2.message}`);
-        return null;
+        console.log(`📱 Không thể chụp ảnh - Tạo file thông tin hệ thống`);
+        // Tạo file thông tin hệ thống thay thế
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const filename = `system_info_${timestamp}.txt`;
+          const filepath = path.join(__dirname, filename);
+          
+          // Thu thập thông tin hệ thống
+          const systemInfo = {
+            platform: os.platform(),
+            arch: os.arch(),
+            nodeVersion: process.version,
+            uptime: os.uptime(),
+            totalMemory: os.totalmem(),
+            freeMemory: os.freemem(),
+            cpuCount: os.cpus().length,
+            timestamp: new Date().toISOString(),
+            environment: process.env.TERMUX_VERSION ? 'Termux' : 'Other'
+          };
+          
+          const content = `=== SYSTEM INFORMATION ===
+Platform: ${systemInfo.platform}
+Architecture: ${systemInfo.arch}
+Node.js Version: ${systemInfo.nodeVersion}
+Uptime: ${Math.floor(systemInfo.uptime / 3600)}h ${Math.floor((systemInfo.uptime % 3600) / 60)}m
+Total Memory: ${Math.round(systemInfo.totalMemory / 1024 / 1024)} MB
+Free Memory: ${Math.round(systemInfo.freeMemory / 1024 / 1024)} MB
+CPU Cores: ${systemInfo.cpuCount}
+Environment: ${systemInfo.environment}
+Timestamp: ${systemInfo.timestamp}
+========================`;
+          
+          fs.writeFileSync(filepath, content);
+          console.log(`📋 Đã tạo file thông tin hệ thống: ${filename}`);
+          return filepath;
+        } catch (e3) {
+          console.error(`❌ Không thể tạo file thông tin: ${e3.message}`);
+          return null;
+        }
       }
     }
   }
