@@ -1143,7 +1143,9 @@ async runMultiInstanceLoop() {
 
       // Hiển thị thông tin webhook nếu có
       if (webhookConfig) {
-        console.log(`\n🔗 Webhook Status: ${webhookConfig.url.substring(0, 50)}...`);
+        const urlParts = webhookConfig.url.split('/');
+        const webhookId = urlParts[urlParts.length - 2] || 'unknown';
+        console.log(`\n🔗 Webhook Status: ID ${webhookId} - [ĐÃ ẨN VÌ LÝ DO BẢO MẬT]`);
         const nextWebhookIn = (webhookConfig.intervalMinutes * 60) - (webhookCounter % (webhookConfig.intervalMinutes * 60));
         const minutes = Math.floor(nextWebhookIn / 60);
         const seconds = nextWebhookIn % 60;
@@ -1174,10 +1176,10 @@ class WebhookManager {
     
     if (this.webhookConfig) {
       console.log(`\n📋 Cấu hình hiện tại:`);
-      const maskedUrl = this.webhookConfig.url.length > 16 ? 
-        this.webhookConfig.url.substring(0, this.webhookConfig.url.length - 16) + '*'.repeat(16) : 
-        this.webhookConfig.url;
-      console.log(`🔗 URL: ${maskedUrl}`);
+      const urlParts = this.webhookConfig.url.split('/');
+      const webhookId = urlParts[urlParts.length - 2] || 'unknown';
+      console.log(`🔗 Webhook ID: ${webhookId}`);
+      console.log(`🔗 URL: [ĐÃ ẨN VÌ LÝ DO BẢO MẬT]`);
       console.log(`⏱️ Thời gian gửi: ${this.webhookConfig.intervalMinutes} phút`);
       console.log(`📊 Trạng thái: ✅ Đã bật`);
       
@@ -1248,7 +1250,9 @@ class WebhookManager {
     
     let webhookUrl;
     while (true) {
-      webhookUrl = await Utils.ask(rl, `🔗 URL webhook hiện tại: ${this.webhookConfig.url}\nNhập URL mới (Enter để giữ nguyên): `);
+      const urlParts = this.webhookConfig.url.split('/');
+      const webhookId = urlParts[urlParts.length - 2] || 'unknown';
+      webhookUrl = await Utils.ask(rl, `🔗 Webhook ID hiện tại: ${webhookId}\n🔗 URL: [ĐÃ ẨN VÌ LÝ DO BẢO MẬT]\nNhập URL mới (Enter để giữ nguyên): `);
       if (!webhookUrl.trim()) {
         webhookUrl = this.webhookConfig.url;
         break;
@@ -1285,10 +1289,10 @@ class WebhookManager {
 
   async deleteWebhook(rl) {
     console.log("\n❌ Xóa cấu hình webhook:");
-    const maskedUrl = this.webhookConfig.url.length > 16 ? 
-      this.webhookConfig.url.substring(0, this.webhookConfig.url.length - 16) + '*'.repeat(16) : 
-      this.webhookConfig.url;
-    console.log(`🔗 URL hiện tại: ${maskedUrl}`);
+    const urlParts = this.webhookConfig.url.split('/');
+    const webhookId = urlParts[urlParts.length - 2] || 'unknown';
+    console.log(`🔗 Webhook ID: ${webhookId}`);
+    console.log(`🔗 URL: [ĐÃ ẨN VÌ LÝ DO BẢO MẬT]`);
     console.log(`⏱️ Thời gian gửi: ${this.webhookConfig.intervalMinutes} phút`);
     
     const confirm = await Utils.ask(rl, "\n⚠️ Bạn có chắc chắn muốn xóa webhook? (y/N): ");
