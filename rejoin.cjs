@@ -1174,7 +1174,10 @@ class WebhookManager {
     
     if (this.webhookConfig) {
       console.log(`\n📋 Cấu hình hiện tại:`);
-      console.log(`🔗 URL: ${this.webhookConfig.url}`);
+      const maskedUrl = this.webhookConfig.url.length > 16 ? 
+        this.webhookConfig.url.substring(0, this.webhookConfig.url.length - 16) + '*'.repeat(16) : 
+        this.webhookConfig.url;
+      console.log(`🔗 URL: ${maskedUrl}`);
       console.log(`⏱️ Thời gian gửi: ${this.webhookConfig.intervalMinutes} phút`);
       console.log(`📊 Trạng thái: ✅ Đã bật`);
       
@@ -1282,7 +1285,10 @@ class WebhookManager {
 
   async deleteWebhook(rl) {
     console.log("\n❌ Xóa cấu hình webhook:");
-    console.log(`🔗 URL hiện tại: ${this.webhookConfig.url}`);
+    const maskedUrl = this.webhookConfig.url.length > 16 ? 
+      this.webhookConfig.url.substring(0, this.webhookConfig.url.length - 16) + '*'.repeat(16) : 
+      this.webhookConfig.url;
+    console.log(`🔗 URL hiện tại: ${maskedUrl}`);
     console.log(`⏱️ Thời gian gửi: ${this.webhookConfig.intervalMinutes} phút`);
     
     const confirm = await Utils.ask(rl, "\n⚠️ Bạn có chắc chắn muốn xóa webhook? (y/N): ");
