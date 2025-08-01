@@ -978,8 +978,8 @@ class MultiRejoinTool {
   renderConfigTable(configs) {
     try {
       const table = new Table({
-        head: ["STT", "Package", "Username", "User ID", "Game ID", "Game Name", "Server VIP Link", "Delay"],
-        colWidths: [5, 20, 15, 12, 15, 20, 15, 8],
+        head: ["STT", "Package", "Username", "Delay", "Game ID", "Game Name", "Server VIP Link"],
+        colWidths: [5, 20, 15, 8, 15, 20, 15],
         style: {
           head: ["cyan"],
           border: ["gray"]
@@ -1003,11 +1003,8 @@ class MultiRejoinTool {
             '*'.repeat(config.username.length - 3) + config.username.slice(-3) :
             (config.username || 'Unknown');
 
-          // Ẩn userId chỉ hiện 3 ký tự cuối
-          const userIdStr = config.userId ? config.userId.toString() : 'Unknown';
-          const maskedUserId = userIdStr.length > 3 ?
-            '*'.repeat(userIdStr.length - 3) + userIdStr.slice(-3) :
-            userIdStr;
+          // Hiển thị delay thay vì userId
+          const delayDisplay = `${config.delaySec || 'Unknown'}s`;
 
           // Hiển thị link code nếu có
           const serverLink = config.linkCode ? `Có 🔗` : `Không ❌`;
@@ -1016,11 +1013,10 @@ class MultiRejoinTool {
             index.toString(),
             packageDisplay,
             maskedUsername,
-            maskedUserId,
+            delayDisplay,
             config.placeId || 'Unknown',
             config.gameName || 'Unknown',
-            serverLink,
-            `${config.delaySec || 'Unknown'}s`
+            serverLink
           ]);
           index++;
         } catch (error) {
@@ -1029,7 +1025,6 @@ class MultiRejoinTool {
           table.push([
             index.toString(),
             packageName,
-            'Error',
             'Error',
             'Error',
             'Error',
