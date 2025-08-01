@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const { execSync, exec } = require("child_process");
 function ensurePackages() {
-  const requiredPackages = ["axios", "cli-table3", "figlet", "boxen", "screenshot-desktop", "canvas"];
+  const requiredPackages = ["axios", "cli-table3", "figlet", "boxen", "screenshot-desktop"];
 
   requiredPackages.forEach((pkg) => {
     try {
@@ -32,7 +32,6 @@ const figlet = require("figlet");
 const _boxen = require("boxen");
 const boxen = _boxen.default || _boxen;
 const screenshot = require("screenshot-desktop");
-const { createCanvas, loadImage } = require("canvas");
 
 class Utils {
   static ensureRoot() {
