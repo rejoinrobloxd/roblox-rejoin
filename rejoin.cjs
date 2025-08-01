@@ -477,11 +477,21 @@ class UIRenderer {
     };
   }
 
-  static renderMultiInstanceTable(instances) {
+  static renderMultiInstanceTable(instances, startTime = null) {
     const stats = this.getSystemStats();
     const colWidths = this.calculateOptimalColumnWidths();
 
-    const cpuRamLine = `💻 CPU: ${stats.cpuUsage}% | 🧠 RAM: ${stats.ramUsage} | 🔥 Instances: ${instances.length}`;
+    // Tính toán uptime
+    let uptimeText = "";
+    if (startTime) {
+      const uptimeMs = Date.now() - startTime;
+      const hours = Math.floor(uptimeMs / (1000 * 60 * 60));
+      const minutes = Math.floor((uptimeMs % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((uptimeMs % (1000 * 60)) / 1000);
+      uptimeText = ` | ⏱️ Uptime: ${hours}h ${minutes}m ${seconds}s`;
+    }
+
+    const cpuRamLine = `💻 CPU: ${stats.cpuUsage}% | 🧠 RAM: ${stats.ramUsage} | 🔥 Instances: ${instances.length}${uptimeText}`;
 
     const table = new Table({
       head: ["Package", "User", "Status", "Info", "Time", "Delay"],
@@ -582,6 +592,7 @@ class MultiRejoinTool {
   constructor() {
     this.instances = [];
     this.isRunning = false;
+    this.startTime = Date.now(); // Thêm thời gian bắt đầu để tính uptime
   }
 
   async start() {
@@ -941,7 +952,7 @@ async runMultiInstanceLoop() {
 ╚══════════════════════════════════════╝`);
       }
 
-      console.log(UIRenderer.renderMultiInstanceTable(this.instances));
+      console.log(UIRenderer.renderMultiInstanceTable(this.instances, this.startTime));
 
       if (this.instances.length > 0) {
         console.log("\n🔍 Debug (Instance 1):");
