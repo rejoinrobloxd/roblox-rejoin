@@ -1170,26 +1170,41 @@ class WebhookManager {
     console.clear();
     console.log(UIRenderer.renderTitle());
     console.log("\n🔗 Cấu hình Webhook Discord");
+    console.log("=".repeat(50));
     
     if (this.webhookConfig) {
       console.log(`\n📋 Cấu hình hiện tại:`);
-      console.log(`URL: ${this.webhookConfig.url}`);
-      console.log(`Thời gian gửi: ${this.webhookConfig.intervalMinutes} phút`);
+      console.log(`🔗 URL: ${this.webhookConfig.url}`);
+      console.log(`⏱️ Thời gian gửi: ${this.webhookConfig.intervalMinutes} phút`);
+      console.log(`📊 Trạng thái: ✅ Đã bật`);
       
-      const choice = await Utils.ask(rl, "\n1. ✏️ Chỉnh sửa webhook | 2. ❌ Xóa webhook | 3. ⏭️ Quay lại: ");
+      console.log("\n🎯 Chọn hành động:");
+      console.log("1. ✏️ Chỉnh sửa webhook");
+      console.log("2. ❌ Xóa webhook");
+      console.log("3. ⏭️ Quay lại menu chính");
+      
+      const choice = await Utils.ask(rl, "\nNhập lựa chọn (1-3): ");
       
       if (choice.trim() === "1") {
         await this.editWebhook(rl);
       } else if (choice.trim() === "2") {
-        Utils.saveWebhookConfig(null);
-        console.log("✅ Đã xóa cấu hình webhook!");
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        await this.setupWebhook(rl);
+        await this.deleteWebhook(rl);
       } else {
         return;
       }
     } else {
-      await this.createWebhook(rl);
+      console.log("\n📝 Chưa có cấu hình webhook!");
+      console.log("\n🎯 Chọn hành động:");
+      console.log("1. ➕ Tạo webhook mới");
+      console.log("2. ⏭️ Quay lại menu chính");
+      
+      const choice = await Utils.ask(rl, "\nNhập lựa chọn (1-2): ");
+      
+      if (choice.trim() === "1") {
+        await this.createWebhook(rl);
+      } else {
+        return;
+      }
     }
   }
 
@@ -1263,6 +1278,25 @@ class WebhookManager {
     Utils.saveWebhookConfig(this.webhookConfig);
     console.log("✅ Đã cập nhật cấu hình webhook!");
     await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
+  async deleteWebhook(rl) {
+    console.log("\n❌ Xóa cấu hình webhook:");
+    console.log(`🔗 URL hiện tại: ${this.webhookConfig.url}`);
+    console.log(`⏱️ Thời gian gửi: ${this.webhookConfig.intervalMinutes} phút`);
+    
+    const confirm = await Utils.ask(rl, "\n⚠️ Bạn có chắc chắn muốn xóa webhook? (y/N): ");
+    
+    if (confirm.toLowerCase() === 'y' || confirm.toLowerCase() === 'yes') {
+      Utils.saveWebhookConfig(null);
+      this.webhookConfig = null;
+      console.log("✅ Đã xóa cấu hình webhook!");
+      console.log("📊 Webhook sẽ không còn gửi báo cáo tự động.");
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    } else {
+      console.log("❌ Đã hủy xóa webhook.");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
   }
 
   async sendStatusWebhook(instances, startTime) {
