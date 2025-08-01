@@ -585,44 +585,65 @@ class MultiRejoinTool {
   }
 
   async start() {
-    Utils.ensureRoot();
-    Utils.enableWakeLock();
+    try {
+      Utils.ensureRoot();
+      Utils.enableWakeLock();
 
-    console.clear();
-    let visitCount = null;
-    try {
-      visitCount = await Utils.curlPastebinVisits();
-    } catch {}
-    try {
-      console.log(UIRenderer.renderTitle());
-    } catch (e) {
-      console.log(`
+      console.clear();
+      let visitCount = null;
+      try {
+        visitCount = await Utils.curlPastebinVisits();
+      } catch (e) {
+        console.log("⚠️ Không thể lấy số lượt truy cập");
+      }
+      
+      try {
+        console.log(UIRenderer.renderTitle());
+      } catch (e) {
+        console.log(`
 ╔══════════════════════════════════════╗
 ║        🚀   DAWN REJOIN   🚀        ║
 ║    Bản quyền thuộc về The Real Dawn  ║
 ╚══════════════════════════════════════╝`);
-    }
-    if (visitCount) {
-      console.log(`\nTổng lượt chạy: ${visitCount}`);
-    }
-    console.log("\n🎯 Multi-Instance Roblox Rejoin Tool");
-    console.log("1. 🚀 Bắt đầu auto rejoin");
-    console.log("2. ⚙️ Setup packages");
+      }
+      
+      if (visitCount) {
+        console.log(`\nTổng lượt chạy: ${visitCount}`);
+      }
+      console.log("\n🎯 Multi-Instance Roblox Rejoin Tool");
+      console.log("1. 🚀 Bắt đầu auto rejoin");
+      console.log("2. ⚙️ Setup packages");
+      console.log("3. ✏️ Chỉnh sửa config");
 
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const choice = await Utils.ask(rl, "\nChọn option (1-2): ");
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      const choice = await Utils.ask(rl, "\nChọn option (1-3): ");
 
-    if (choice.trim() === "1") {
-      await this.startAutoRejoin(rl);
-      rl.close();
-    } else if (choice.trim() === "2") {
-      await this.setupPackages(rl);
-      rl.close();
-    } else {
-      console.log("❌ Lựa chọn không hợp lệ!");
-      rl.close();
-      // Quay lại menu thay vì exit
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      try {
+        if (choice.trim() === "1") {
+          await this.startAutoRejoin(rl);
+          rl.close();
+        } else if (choice.trim() === "2") {
+          await this.setupPackages(rl);
+          rl.close();
+        } else if (choice.trim() === "3") {
+          await this.editConfigs(rl);
+          rl.close();
+        } else {
+          console.log("❌ Lựa chọn không hợp lệ!");
+          rl.close();
+          // Quay lại menu thay vì exit
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await this.start();
+        }
+      } catch (error) {
+        console.log(`❌ Lỗi khi xử lý lựa chọn: ${error.message}`);
+        rl.close();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await this.start();
+      }
+    } catch (error) {
+      console.log(`❌ Lỗi nghiêm trọng trong start: ${error.message}`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
       await this.start();
     }
   }
@@ -730,7 +751,303 @@ class MultiRejoinTool {
     await this.start(); // Gọi lại menu chính
   }
 
-async startAutoRejoin(rl) {
+  async editConfigs(rl) {
+    try {
+      const configs = Utils.loadMultiConfigs();
+
+      if (Object.keys(configs).length === 0) {
+        console.log("❌ Chưa có config nào! Vui lòng chạy setup packages trước.");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await this.start();
+        return;
+      }
+
+      console.log("\n📋 Danh sách config hiện tại:");
+      console.log(this.renderConfigTable(configs));
+
+      console.log("\n🎯 Chọn config để chỉnh sửa:");
+      console.log("0. ✏️ Sửa tất cả config");
+      
+      let index = 1;
+      const configList = [];
+      for (const [packageName, config] of Object.entries(configs)) {
+        try {
+          let packageDisplay;
+          if (packageName === 'com.roblox.client') {
+            packageDisplay = 'Global 🌍';
+          } else if (packageName === 'com.roblox.client.vnggames') {
+            packageDisplay = 'VNG 🇻🇳';
+          } else {
+            packageDisplay = packageName;
+          }
+
+          // Ẩn username chỉ hiện 3 ký tự cuối
+          const maskedUsername = config.username && config.username.length > 3 ?
+            '*'.repeat(config.username.length - 3) + config.username.slice(-3) :
+            (config.username || 'Unknown');
+
+          // Ẩn userId chỉ hiện 3 ký tự cuối
+          const userIdStr = config.userId ? config.userId.toString() : 'Unknown';
+          const maskedUserId = userIdStr.length > 3 ?
+            '*'.repeat(userIdStr.length - 3) + userIdStr.slice(-3) :
+            userIdStr;
+
+          console.log(`${index}. ${packageDisplay} (${maskedUsername}) - Game: ${config.gameName || 'Unknown'}`);
+          configList.push({ packageName, config });
+          index++;
+        } catch (error) {
+          console.log(`⚠️ Lỗi khi xử lý config ${packageName}: ${error.message}`);
+          continue;
+        }
+      }
+
+      if (configList.length === 0) {
+        console.log("❌ Không có config hợp lệ nào!");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await this.start();
+        return;
+      }
+
+      const choice = await Utils.ask(rl, "\nNhập lựa chọn (0 để sửa tất cả, hoặc số cách nhau bởi khoảng trắng): ");
+      let selectedConfigs = [];
+
+      if (choice.trim() === "0") {
+        selectedConfigs = configList;
+        console.log("✏️ Sẽ sửa tất cả config!");
+      } else {
+        try {
+          const indices = choice
+            .trim()
+            .split(/\s+/)
+            .map(str => parseInt(str) - 1)
+            .filter(i => i >= 0 && i < configList.length);
+
+          if (indices.length === 0) {
+            console.log("❌ Lựa chọn không hợp lệ!");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await this.editConfigs(rl);
+            return;
+          }
+
+          selectedConfigs = indices.map(i => configList[i]);
+          console.log(`✏️ Sẽ sửa các config:`);
+          selectedConfigs.forEach((cfg, i) => {
+            try {
+              const maskedUsername = cfg.config.username && cfg.config.username.length > 3 ?
+                '*'.repeat(cfg.config.username.length - 3) + cfg.config.username.slice(-3) :
+                (cfg.config.username || 'Unknown');
+              console.log(`  - ${i + 1}. ${cfg.packageName} (${maskedUsername})`);
+            } catch (error) {
+              console.log(`  - ${i + 1}. ${cfg.packageName} (Lỗi hiển thị)`);
+            }
+          });
+        } catch (error) {
+          console.log(`❌ Lỗi khi xử lý lựa chọn: ${error.message}`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await this.editConfigs(rl);
+          return;
+        }
+      }
+
+      // Bắt đầu chỉnh sửa từng config
+      for (const { packageName, config } of selectedConfigs) {
+        try {
+          console.clear();
+          console.log(UIRenderer.renderTitle());
+          console.log(`\n✏️ Chỉnh sửa config cho ${packageName}`);
+          
+          let packageDisplay;
+          if (packageName === 'com.roblox.client') {
+            packageDisplay = 'Global 🌍';
+          } else if (packageName === 'com.roblox.client.vnggames') {
+            packageDisplay = 'VNG 🇻🇳';
+          } else {
+            packageDisplay = packageName;
+          }
+
+          console.log(`📦 Package: ${packageDisplay}`);
+          console.log(`👤 Username: ${config.username || 'Unknown'}`);
+          console.log(`🆔 User ID: ${config.userId || 'Unknown'}`);
+          console.log(`🎮 Game: ${config.gameName || 'Unknown'} (${config.placeId || 'Unknown'})`);
+          console.log(`⏱️ Delay: ${config.delaySec || 'Unknown'}s`);
+          if (config.linkCode) {
+            console.log(`🔗 Link Code: ${config.linkCode}`);
+          }
+
+          console.log("\n📝 Chọn thông tin để chỉnh sửa:");
+          console.log("1. 🎮 Thay đổi game");
+          console.log("2. ⏱️ Thay đổi delay");
+          console.log("3. 🔗 Thay đổi link code");
+          console.log("4. ❌ Xóa config này");
+          console.log("5. ⏭️ Bỏ qua (giữ nguyên)");
+
+          const editChoice = await Utils.ask(rl, "\nChọn option (1-5): ");
+
+          try {
+            switch (editChoice.trim()) {
+              case "1":
+                const selector = new GameSelector();
+                const game = await selector.chooseGame(rl);
+                config.placeId = game.placeId;
+                config.gameName = game.name;
+                config.linkCode = game.linkCode;
+                console.log(`✅ Đã cập nhật game thành ${game.name}!`);
+                break;
+
+              case "2":
+                let newDelay;
+                while (true) {
+                  try {
+                    const input = await Utils.ask(rl, "⏱️ Delay check mới (giây, 15-120): ");
+                    const delayValue = parseInt(input) || 0;
+                    if (delayValue >= 15 && delayValue <= 120) {
+                      newDelay = delayValue;
+                      break;
+                    }
+                    console.log("❌ Giá trị không hợp lệ! Vui lòng nhập lại.");
+                  } catch (error) {
+                    console.log("❌ Lỗi khi nhập delay, vui lòng thử lại.");
+                  }
+                }
+                config.delaySec = newDelay;
+                console.log(`✅ Đã cập nhật delay thành ${newDelay}s!`);
+                break;
+
+              case "3":
+                console.log("\n📎 Dán link redirect sau khi vào private server.");
+                while (true) {
+                  try {
+                    const link = await Utils.ask(rl, "\nDán link redirect đã chuyển hướng: ");
+                    const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
+                    if (!m) {
+                      console.log(`❌ Link không hợp lệ!`);
+                      continue;
+                    }
+                    config.placeId = m[1];
+                    config.gameName = "Private Server 🔒";
+                    config.linkCode = m[2];
+                    console.log(`✅ Đã cập nhật link code!`);
+                    break;
+                  } catch (error) {
+                    console.log(`❌ Lỗi khi xử lý link: ${error.message}`);
+                  }
+                }
+                break;
+
+              case "4":
+                delete configs[packageName];
+                console.log(`✅ Đã xóa config cho ${packageDisplay}!`);
+                break;
+
+              case "5":
+                console.log(`⏭️ Giữ nguyên config cho ${packageDisplay}`);
+                break;
+
+              default:
+                console.log("❌ Lựa chọn không hợp lệ!");
+                break;
+            }
+          } catch (error) {
+            console.log(`❌ Lỗi khi chỉnh sửa config: ${error.message}`);
+          }
+        } catch (error) {
+          console.log(`❌ Lỗi khi xử lý config ${packageName}: ${error.message}`);
+          continue;
+        }
+      }
+
+      // Lưu configs sau khi chỉnh sửa
+      try {
+        Utils.saveMultiConfigs(configs);
+        console.log("\n✅ Hoàn tất chỉnh sửa config!");
+      } catch (error) {
+        console.log(`❌ Lỗi khi lưu config: ${error.message}`);
+      }
+      
+      // Quay lại menu chính
+      console.log("\n⏳ Đang quay lại menu chính...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await this.start();
+    } catch (error) {
+      console.log(`❌ Lỗi nghiêm trọng trong editConfigs: ${error.message}`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await this.start();
+    }
+  }
+
+  renderConfigTable(configs) {
+    try {
+      const table = new Table({
+        head: ["STT", "Package", "Username", "User ID", "Game ID", "Game Name", "Server VIP Link", "Delay"],
+        colWidths: [5, 20, 15, 12, 15, 20, 15, 8],
+        style: {
+          head: ["cyan"],
+          border: ["gray"]
+        }
+      });
+
+      let index = 1;
+      for (const [packageName, config] of Object.entries(configs)) {
+        try {
+          let packageDisplay;
+          if (packageName === 'com.roblox.client') {
+            packageDisplay = 'Global 🌍';
+          } else if (packageName === 'com.roblox.client.vnggames') {
+            packageDisplay = 'VNG 🇻🇳';
+          } else {
+            packageDisplay = packageName;
+          }
+
+          // Ẩn username chỉ hiện 3 ký tự cuối
+          const maskedUsername = config.username && config.username.length > 3 ?
+            '*'.repeat(config.username.length - 3) + config.username.slice(-3) :
+            (config.username || 'Unknown');
+
+          // Ẩn userId chỉ hiện 3 ký tự cuối
+          const userIdStr = config.userId ? config.userId.toString() : 'Unknown';
+          const maskedUserId = userIdStr.length > 3 ?
+            '*'.repeat(userIdStr.length - 3) + userIdStr.slice(-3) :
+            userIdStr;
+
+          // Hiển thị link code nếu có
+          const serverLink = config.linkCode ? `Có 🔗` : `Không ❌`;
+
+          table.push([
+            index.toString(),
+            packageDisplay,
+            maskedUsername,
+            maskedUserId,
+            config.placeId || 'Unknown',
+            config.gameName || 'Unknown',
+            serverLink,
+            `${config.delaySec || 'Unknown'}s`
+          ]);
+          index++;
+        } catch (error) {
+          console.log(`⚠️ Lỗi khi xử lý config ${packageName}: ${error.message}`);
+          // Thêm dòng lỗi vào bảng
+          table.push([
+            index.toString(),
+            packageName,
+            'Error',
+            'Error',
+            'Error',
+            'Error',
+            'Error',
+            'Error'
+          ]);
+          index++;
+        }
+      }
+
+      return table.toString();
+    } catch (error) {
+      console.log(`❌ Lỗi khi tạo bảng config: ${error.message}`);
+      return "❌ Không thể hiển thị bảng config";
+    }
+  }
+
+  async startAutoRejoin(rl) {
   const configs = Utils.loadMultiConfigs();
 
   if (Object.keys(configs).length === 0) {
