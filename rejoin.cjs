@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const { execSync, exec } = require("child_process");
 function ensurePackages() {
-  const requiredPackages = ["axios", "cli-table3", "figlet", "boxen"];
+  const requiredPackages = ["axios", "cli-table3", "figlet", "boxen", "screenshot-desktop", "canvas"];
 
   requiredPackages.forEach((pkg) => {
     try {
@@ -26,10 +26,13 @@ const path = require("path");
 const os = require("os");
 const Table = require("cli-table3");
 const CONFIG_PATH = path.join(__dirname, "multi_configs.json");
+const WEBHOOK_CONFIG_PATH = path.join(__dirname, "webhook_config.json");
 const util = require("util");
 const figlet = require("figlet");
 const _boxen = require("boxen");
 const boxen = _boxen.default || _boxen;
+const screenshot = require("screenshot-desktop");
+const { createCanvas, loadImage } = require("canvas");
 
 class Utils {
   static ensureRoot() {
@@ -117,6 +120,121 @@ class Utils {
       return JSON.parse(raw);
     } catch {
       return {};
+    }
+  }
+
+  static saveWebhookConfig(config) {
+    try {
+      fs.writeFileSync(WEBHOOK_CONFIG_PATH, JSON.stringify(config, null, 2));
+      console.log(`💾 Đã lưu webhook config tại ${WEBHOOK_CONFIG_PATH}`);
+    } catch (e) {
+      console.error(`❌ Không thể lưu webhook config: ${e.message}`);
+    }
+  }
+
+  static loadWebhookConfig() {
+    if (!fs.existsSync(WEBHOOK_CONFIG_PATH)) return null;
+    try {
+      const raw = fs.readFileSync(WEBHOOK_CONFIG_PATH);
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  static async takeScreenshot() {
+    try {
+      const img = await screenshot();
+      const timestamp = Date.now();
+      const filename = `screenshot_${timestamp}.png`;
+      const filepath = path.join(__dirname, filename);
+      
+      fs.writeFileSync(filepath, img);
+      console.log(`📸 Đã chụp ảnh: ${filename}`);
+      return filepath;
+    } catch (e) {
+      console.error(`❌ Lỗi khi chụp ảnh: ${e.message}`);
+      // Thử cách khác nếu screenshot-desktop không hoạt động
+      try {
+        const timestamp = Date.now();
+        const filename = `screenshot_${timestamp}.txt`;
+        const filepath = path.join(__dirname, filename);
+        
+        // Tạo file text thay thế
+        const content = `Screenshot placeholder - ${new Date().toISOString()}`;
+        fs.writeFileSync(filepath, content);
+        console.log(`📝 Đã tạo file placeholder: ${filename}`);
+        return filepath;
+      } catch (e2) {
+        console.error(`❌ Không thể tạo file placeholder: ${e2.message}`);
+        return null;
+      }
+    }
+  }
+
+  static deleteScreenshot(filepath) {
+    try {
+      if (fs.existsSync(filepath)) {
+        fs.unlinkSync(filepath);
+        console.log(`🗑️ Đã xóa ảnh: ${path.basename(filepath)}`);
+      }
+    } catch (e) {
+      console.error(`❌ Lỗi khi xóa ảnh: ${e.message}`);
+    }
+  }
+
+  static async sendWebhookEmbed(webhookUrl, embedData, screenshotPath = null) {
+    try {
+      const payload = {
+        embeds: [embedData]
+      };
+
+      if (screenshotPath && fs.existsSync(screenshotPath)) {
+        const screenshotBuffer = fs.readFileSync(screenshotPath);
+        const fileExt = path.extname(screenshotPath).toLowerCase();
+        const contentType = fileExt === '.png' ? 'image/png' : 'text/plain';
+        const boundary = '----WebKitFormBoundary' + Math.random().toString(16).substr(2);
+        
+        let body = '';
+        body += `--${boundary}\r\n`;
+        body += `Content-Disposition: form-data; name="payload_json"\r\n`;
+        body += `Content-Type: application/json\r\n\r\n`;
+        body += JSON.stringify(payload) + '\r\n';
+        body += `--${boundary}\r\n`;
+        body += `Content-Disposition: form-data; name="file"; filename="${path.basename(screenshotPath)}"\r\n`;
+        body += `Content-Type: ${contentType}\r\n\r\n`;
+        
+        const multipartBody = Buffer.concat([
+          Buffer.from(body, 'utf8'),
+          screenshotBuffer,
+          Buffer.from(`\r\n--${boundary}--\r\n`, 'utf8')
+        ]);
+
+        await axios.post(webhookUrl, multipartBody, {
+          headers: {
+            'Content-Type': `multipart/form-data; boundary=${boundary}`,
+            'Content-Length': multipartBody.length
+          }
+        });
+      } else {
+        // Gửi chỉ embed
+        await axios.post(webhookUrl, payload, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+
+      console.log(`✅ Đã gửi webhook thành công!`);
+      
+      // Xóa ảnh sau 5 giây
+      if (screenshotPath) {
+        setTimeout(() => {
+          this.deleteScreenshot(screenshotPath);
+        }, 5000);
+      }
+    } catch (e) {
+      console.error(`❌ Lỗi khi gửi webhook: ${e.message}`);
     }
   }
 
@@ -417,7 +535,7 @@ class UIRenderer {
   static renderTitle() {
     const fallbackTitle = `
 ╔══════════════════════════════════════╗
-║        🚀  DAWN REJOIN 🚀           ║
+║        🚀  DAWN REJOIN ��           ║
 ║    Bản quyền thuộc về The Real Dawn  ║
 ╚══════════════════════════════════════╝`;
 
@@ -625,9 +743,10 @@ class MultiRejoinTool {
       console.log("1. 🚀 Bắt đầu auto rejoin");
       console.log("2. ⚙️ Setup packages");
       console.log("3. ✏️ Chỉnh sửa config");
+      console.log("4. 🔗 Cấu hình webhook");
 
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      const choice = await Utils.ask(rl, "\nChọn option (1-3): ");
+      const choice = await Utils.ask(rl, "\nChọn option (1-4): ");
 
       try {
         if (choice.trim() === "1") {
@@ -638,6 +757,9 @@ class MultiRejoinTool {
           rl.close();
         } else if (choice.trim() === "3") {
           await this.editConfigs(rl);
+          rl.close();
+        } else if (choice.trim() === "4") {
+          await this.setupWebhook(rl);
           rl.close();
         } else {
           console.log("❌ Lựa chọn không hợp lệ!");
@@ -778,6 +900,16 @@ class MultiRejoinTool {
     }
   }
 
+  async setupWebhook(rl) {
+    const webhookManager = new WebhookManager();
+    await webhookManager.setupWebhook(rl);
+    
+    // Quay lại menu chính
+    console.log("\n⏳ Đang quay lại menu chính...");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await this.start();
+  }
+
 
 
   async startAutoRejoin(rl) {
@@ -891,6 +1023,9 @@ class MultiRejoinTool {
 
 async runMultiInstanceLoop() {
   let renderCounter = 0;
+  let webhookCounter = 0;
+  const webhookManager = new WebhookManager();
+  const webhookConfig = Utils.loadWebhookConfig();
 
   while (this.isRunning) {
     const now = Date.now();
@@ -940,6 +1075,12 @@ async runMultiInstanceLoop() {
       }
     }
 
+    // Gửi webhook theo định kỳ
+    if (webhookConfig && webhookCounter % (webhookConfig.intervalMinutes * 60) === 0 && webhookCounter > 0) {
+      console.log(`\n📤 Đang gửi webhook status...`);
+      await webhookManager.sendStatusWebhook(this.instances, this.startTime);
+    }
+
     if (renderCounter % 5 === 0) {
       console.clear();
       try {
@@ -960,14 +1101,204 @@ async runMultiInstanceLoop() {
         console.log(`Last Check: ${new Date(this.instances[0].lastCheck).toLocaleTimeString()}`);
       }
 
+      // Hiển thị thông tin webhook nếu có
+      if (webhookConfig) {
+        console.log(`\n🔗 Webhook Status: ${webhookConfig.url.substring(0, 50)}...`);
+        const nextWebhookIn = (webhookConfig.intervalMinutes * 60) - (webhookCounter % (webhookConfig.intervalMinutes * 60));
+        const minutes = Math.floor(nextWebhookIn / 60);
+        const seconds = nextWebhookIn % 60;
+        console.log(`🔗 Webhook: ${minutes}m ${seconds}s nữa sẽ gửi báo cáo (${webhookConfig.intervalMinutes} phút/lần)`);
+      }
+
       console.log("\n💡 Nhấn Ctrl+C để dừng chương trình");
     }
 
     renderCounter++;
+    webhookCounter++;
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
 }
 
+}
+
+class WebhookManager {
+  constructor() {
+    this.webhookConfig = Utils.loadWebhookConfig();
+  }
+
+  async setupWebhook(rl) {
+    console.clear();
+    console.log(UIRenderer.renderTitle());
+    console.log("\n🔗 Cấu hình Webhook Discord");
+    
+    if (this.webhookConfig) {
+      console.log(`\n📋 Cấu hình hiện tại:`);
+      console.log(`URL: ${this.webhookConfig.url}`);
+      console.log(`Thời gian gửi: ${this.webhookConfig.intervalMinutes} phút`);
+      
+      const choice = await Utils.ask(rl, "\n1. ✏️ Chỉnh sửa webhook | 2. ❌ Xóa webhook | 3. ⏭️ Quay lại: ");
+      
+      if (choice.trim() === "1") {
+        await this.editWebhook(rl);
+      } else if (choice.trim() === "2") {
+        Utils.saveWebhookConfig(null);
+        console.log("✅ Đã xóa cấu hình webhook!");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await this.setupWebhook(rl);
+      } else {
+        return;
+      }
+    } else {
+      await this.createWebhook(rl);
+    }
+  }
+
+  async createWebhook(rl) {
+    console.log("\n📝 Tạo cấu hình webhook mới:");
+    
+    let webhookUrl;
+    while (true) {
+      webhookUrl = await Utils.ask(rl, "🔗 Nhập URL webhook Discord: ");
+      if (webhookUrl.trim() && webhookUrl.includes('discord.com/api/webhooks/')) {
+        break;
+      }
+      console.log("❌ URL webhook không hợp lệ! Vui lòng nhập lại.");
+    }
+
+    let intervalMinutes;
+    while (true) {
+      const input = await Utils.ask(rl, "⏱️ Thời gian gửi webhook (5-180 phút): ");
+      intervalMinutes = parseInt(input);
+      if (intervalMinutes >= 5 && intervalMinutes <= 180) {
+        break;
+      }
+      console.log("❌ Thời gian phải từ 5-180 phút! Vui lòng nhập lại.");
+    }
+
+    this.webhookConfig = {
+      url: webhookUrl.trim(),
+      intervalMinutes: intervalMinutes
+    };
+
+    Utils.saveWebhookConfig(this.webhookConfig);
+    console.log("✅ Đã lưu cấu hình webhook!");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
+  async editWebhook(rl) {
+    console.log("\n✏️ Chỉnh sửa webhook:");
+    
+    let webhookUrl;
+    while (true) {
+      webhookUrl = await Utils.ask(rl, `🔗 URL webhook hiện tại: ${this.webhookConfig.url}\nNhập URL mới (Enter để giữ nguyên): `);
+      if (!webhookUrl.trim()) {
+        webhookUrl = this.webhookConfig.url;
+        break;
+      }
+      if (webhookUrl.includes('discord.com/api/webhooks/')) {
+        break;
+      }
+      console.log("❌ URL webhook không hợp lệ! Vui lòng nhập lại.");
+    }
+
+    let intervalMinutes;
+    while (true) {
+      const input = await Utils.ask(rl, `⏱️ Thời gian hiện tại: ${this.webhookConfig.intervalMinutes} phút\nNhập thời gian mới (5-180 phút, Enter để giữ nguyên): `);
+      if (!input.trim()) {
+        intervalMinutes = this.webhookConfig.intervalMinutes;
+        break;
+      }
+      intervalMinutes = parseInt(input);
+      if (intervalMinutes >= 5 && intervalMinutes <= 180) {
+        break;
+      }
+      console.log("❌ Thời gian phải từ 5-180 phút! Vui lòng nhập lại.");
+    }
+
+    this.webhookConfig = {
+      url: webhookUrl.trim(),
+      intervalMinutes: intervalMinutes
+    };
+
+    Utils.saveWebhookConfig(this.webhookConfig);
+    console.log("✅ Đã cập nhật cấu hình webhook!");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
+  async sendStatusWebhook(instances, startTime) {
+    if (!this.webhookConfig) return;
+
+    try {
+      const stats = UIRenderer.getSystemStats();
+      const uptimeMs = Date.now() - startTime;
+      const hours = Math.floor(uptimeMs / (1000 * 60 * 60));
+      const minutes = Math.floor((uptimeMs % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((uptimeMs % (1000 * 60)) / 1000);
+
+      // Đếm số package đang chạy
+      const activePackages = instances.filter(instance => 
+        instance.status === "Online ✅" || instance.status.includes("Online")
+      ).length;
+
+      // Tạo danh sách package
+      const packageList = instances.map(instance => {
+        let packageDisplay;
+        if (instance.packageName === 'com.roblox.client') {
+          packageDisplay = 'Global 🌍';
+        } else if (instance.packageName === 'com.roblox.client.vnggames') {
+          packageDisplay = 'VNG 🇻🇳';
+        } else {
+          packageDisplay = instance.packageName;
+        }
+        return `${packageDisplay}: ${instance.status}`;
+      }).join('\n');
+
+      const embed = {
+        title: "🖥️ Dawn Rejoin Status Report",
+        color: 0x00ff00,
+        timestamp: new Date().toISOString(),
+        fields: [
+          {
+            name: "💻 CPU Usage",
+            value: `${stats.cpuUsage}%`,
+            inline: true
+          },
+          {
+            name: "🧠 RAM Usage",
+            value: stats.ramUsage,
+            inline: true
+          },
+          {
+            name: "⏱️ Uptime",
+            value: `${hours}h ${minutes}m ${seconds}s`,
+            inline: true
+          },
+          {
+            name: "🚀 Active Instances",
+            value: `${activePackages}/${instances.length}`,
+            inline: true
+          },
+          {
+            name: "📦 Package Status",
+            value: packageList.length > 1024 ? packageList.substring(0, 1021) + "..." : packageList,
+            inline: false
+          }
+        ],
+        footer: {
+          text: "Dawn Rejoin Tool - The Real Dawn"
+        }
+      };
+
+      // Chụp ảnh màn hình
+      const screenshotPath = await Utils.takeScreenshot();
+      
+      // Gửi webhook
+      await Utils.sendWebhookEmbed(this.webhookConfig.url, embed, screenshotPath);
+      
+    } catch (e) {
+      console.error(`❌ Lỗi khi gửi webhook: ${e.message}`);
+    }
+  }
 }
 
 class ConfigEditor {
