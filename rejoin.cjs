@@ -58,20 +58,18 @@ class Utils {
     }
   }
 
-  // FIX: Thêm async và execSync để đồng bộ
   static async killApp(packageName) {
     try {
       console.log(`💀 [${packageName}] Đang kill app...`);
       execSync(`am force-stop ${packageName}`, { stdio: 'pipe' });
       console.log(`✅ [${packageName}] Đã kill thành công!`);
-      // Đợi 1 giây để đảm bảo app đã đóng hoàn toàn
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (e) {
       console.error(`❌ [${packageName}] Lỗi khi kill app: ${e.message}`);
     }
   }
 
-  // FIX: Thêm async và execSync
+
   static async launch(placeId, linkCode = null, packageName) {
     const url = linkCode
       ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
@@ -80,14 +78,8 @@ class Utils {
     console.log(`🚀 [${packageName}] Đang mở: ${url}`);
     if (linkCode) console.log(`✨ [${packageName}] Đã join bằng linkCode: ${linkCode}`);
 
-    let activity;
-    if (packageName === "com.roblox.client") {
-      activity = "com.roblox.client.ActivityProtocolLaunch";
-    } else if (packageName === "com.roblox.client.vnggames") {
-      activity = "com.roblox.client.ActivityProtocolLaunch";
-    } else {
-      activity = "com.roblox.client.ActivityProtocolLaunch";
-    }
+    // Make activity more flexible - use the package name dynamically but keep .ActivityProtocolLaunch hardcoded
+    const activity = `${packageName}.ActivityProtocolLaunch`;
 
     const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}" --activity-clear-top`;
     
@@ -591,7 +583,17 @@ class StatusHandler {
       };
     }
 
-    // User is not in game (online but not playing)
+    // User is online but not in game (presence type 1 - online but not playing)
+    if (presence.userPresenceType === 1) {
+      return {
+        status: "Online nhưng không trong game 😴",
+        info: "User online nhưng không trong game. Sử dụng launch thay vì kill! 🎮",
+        shouldLaunch: true, // Use launch instead of kill for presence type 1
+        rejoinOnly: true // Use rejoinOnly mode (don't kill, just launch)
+      };
+    }
+
+    // User is not in game (other cases)
     if (presence.userPresenceType !== 2) {
       return {
         status: "Không online 😴",
