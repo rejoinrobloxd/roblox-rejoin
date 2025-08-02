@@ -843,6 +843,7 @@ class MultiRejoinTool {
       
       if (visitCount) {
         console.log(`\nTổng lượt chạy: ${visitCount}`);
+        console.log(`\ndiscord.gg/37VJXk9hH4`);
       }
       console.log("\n🎯 Multi-Instance Roblox Rejoin Tool");
       console.log("1. 🚀 Bắt đầu auto rejoin");
