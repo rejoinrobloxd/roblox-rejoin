@@ -78,8 +78,16 @@ class Utils {
     console.log(`🚀 [${packageName}] Đang mở: ${url}`);
     if (linkCode) console.log(`✨ [${packageName}] Đã join bằng linkCode: ${linkCode}`);
 
-    // Make activity more flexible - use the package name dynamically but keep .ActivityProtocolLaunch hardcoded
-    const activity = `${packageName}.ActivityProtocolLaunch`;
+    // Xác định activity dựa trên package name
+    let activity;
+    if (packageName === "com.roblox.client") {
+      activity = "com.roblox.client.ActivityProtocolLaunch";
+    } else if (packageName === "com.roblox.client.vnggames") {
+      activity = "com.roblox.client.ActivityProtocolLaunch";
+    } else {
+      // Cho các package Roblox custom, sử dụng activity chuẩn
+      activity = "com.roblox.client.ActivityProtocolLaunch";
+    }
 
     const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}" --activity-clear-top`;
     
