@@ -581,8 +581,8 @@ class StatusHandler {
       };
     }
 
-    // User is offline or away
-    if (presence.userPresenceType === 0 || presence.userPresenceType === 1) {
+    // User is offline (presence type 0)
+    if (presence.userPresenceType === 0) {
       return {
         status: "Offline 💤", 
         info: "User offline! Tiến hành rejoin! 🚀",
