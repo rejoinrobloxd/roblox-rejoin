@@ -83,6 +83,12 @@ class Utils {
 
     const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}" --activity-clear-top`;
     
+    // Debug: In ra lệnh am start đã chạy
+    console.log(`🔍 [${packageName}] DEBUG - Lệnh am start đã chạy:`);
+    console.log(`🔍 [${packageName}] ${command}`);
+    console.log(`🔍 [${packageName}] Thời gian: ${new Date().toLocaleString()}`);
+    console.log(`🔍 [${packageName}] ========================================`);
+    
     try {
       execSync(command, { stdio: 'pipe' });
       console.log(`✅ [${packageName}] Launch command executed!`);
