@@ -353,12 +353,6 @@ Timestamp: ${systemInfo.timestamp}
           console.log(`   - ${pkg.displayName} (${pkg.packageName})`);
           console.log(`     👤 User: ${pkg.username}`);
         });
-        
-        console.log("\n✅ PACKAGES CÒN LẠI:");
-        validPackages.forEach(pkg => {
-          console.log(`   - ${pkg.displayName} (${pkg.packageName})`);
-          console.log(`     👤 User: ${pkg.username}`);
-        });
 
         console.log("\n⚠️ CẢNH BÁO: Một số packages đã bị gỡ cài đặt hoặc không tồn tại!");
         console.log("💡 Giải pháp: Vui lòng setup lại packages trước khi chạy auto rejoin.");
