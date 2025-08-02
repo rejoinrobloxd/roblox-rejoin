@@ -358,7 +358,7 @@ Timestamp: ${systemInfo.timestamp}
         console.log("\n❌ PHÁT HIỆN PACKAGES BỊ THIẾU:");
         missingPackages.forEach(pkg => {
           console.log(`   - ${pkg.displayName} (${pkg.packageName})`);
-          console.log(`     👤 User: ${pkg.username}`);
+          console.log(`     👤 User: ${Utils.maskSensitiveInfo(pkg.username)}`);
         });
 
         console.log("\n⚠️ CẢNH BÁO: Một số packages đã bị gỡ cài đặt hoặc không tồn tại!");
@@ -426,6 +426,13 @@ Timestamp: ${systemInfo.timestamp}
     } catch (e) {
       return null;
     }
+  }
+
+  static maskSensitiveInfo(text) {
+    if (!text || text === 'Unknown') return text;
+    const str = text.toString();
+    if (str.length <= 3) return str;
+    return '*'.repeat(str.length - 3) + str.slice(-3);
   }
 }
 
@@ -751,9 +758,7 @@ class UIRenderer {
       }
 
       const rawUsername = instance.config.username || instance.user.username || 'Unknown';
-      const username = rawUsername.length > 3 ?
-        '*'.repeat(rawUsername.length - 3) + rawUsername.slice(-3) :
-        rawUsername;
+      const username = Utils.maskSensitiveInfo(rawUsername);
 
       const delaySeconds = Number(instance.countdownSeconds) || 0;
 
@@ -800,9 +805,7 @@ class UIRenderer {
       }
 
       // Ẩn username chỉ hiện 3 ký tự cuối
-      const maskedUsername = config.username.length > 3 ?
-        '*'.repeat(config.username.length - 3) + config.username.slice(-3) :
-        config.username;
+      const maskedUsername = Utils.maskSensitiveInfo(config.username);
 
       table.push([
         index.toString(),
@@ -960,8 +963,8 @@ class MultiRejoinTool {
         continue;
       }
 
-      console.log(`👤 Username: ${user.username}`);
-      console.log(`🆔 User ID: ${userId}`);
+      console.log(`👤 Username: ${Utils.maskSensitiveInfo(user.username)}`);
+      console.log(`🆔 User ID: ${Utils.maskSensitiveInfo(userId)}`);
 
       const selector = new GameSelector();
       const game = await selector.chooseGame(rl);
@@ -1086,9 +1089,7 @@ class MultiRejoinTool {
     }
 
     // Ẩn username chỉ hiện 3 ký tự cuối
-    const maskedUsername = config.username.length > 3 ?
-      '*'.repeat(config.username.length - 3) + config.username.slice(-3) :
-      config.username;
+    const maskedUsername = Utils.maskSensitiveInfo(config.username);
 
     console.log(`${index}. ${packageDisplay} (${maskedUsername})`);
     packageList.push(packageName);
@@ -1563,15 +1564,10 @@ class ConfigEditor {
           }
 
           // Ẩn username chỉ hiện 3 ký tự cuối
-          const maskedUsername = config.username && config.username.length > 3 ?
-            '*'.repeat(config.username.length - 3) + config.username.slice(-3) :
-            (config.username || 'Unknown');
+          const maskedUsername = Utils.maskSensitiveInfo(config.username);
 
           // Ẩn userId chỉ hiện 3 ký tự cuối
-          const userIdStr = config.userId ? config.userId.toString() : 'Unknown';
-          const maskedUserId = userIdStr.length > 3 ?
-            '*'.repeat(userIdStr.length - 3) + userIdStr.slice(-3) :
-            userIdStr;
+          const maskedUserId = Utils.maskSensitiveInfo(config.userId);
 
           console.log(`${index}. ${packageDisplay} (${maskedUsername}) - Game: ${config.gameName || 'Unknown'}`);
           configList.push({ packageName, config });
@@ -1612,9 +1608,7 @@ class ConfigEditor {
           console.log(`✏️ Sẽ sửa các config:`);
           selectedConfigs.forEach((cfg, i) => {
             try {
-              const maskedUsername = cfg.config.username && cfg.config.username.length > 3 ?
-                '*'.repeat(cfg.config.username.length - 3) + cfg.config.username.slice(-3) :
-                (cfg.config.username || 'Unknown');
+              const maskedUsername = Utils.maskSensitiveInfo(cfg.config.username);
               console.log(`  - ${i + 1}. ${cfg.packageName} (${maskedUsername})`);
             } catch (error) {
               console.log(`  - ${i + 1}. ${cfg.packageName} (Lỗi hiển thị)`);
@@ -1644,8 +1638,8 @@ class ConfigEditor {
           }
 
           console.log(`📦 Package: ${packageDisplay}`);
-          console.log(`👤 Username: ${config.username || 'Unknown'}`);
-          console.log(`🆔 User ID: ${config.userId || 'Unknown'}`);
+          console.log(`👤 Username: ${Utils.maskSensitiveInfo(config.username)}`);
+          console.log(`🆔 User ID: ${Utils.maskSensitiveInfo(config.userId)}`);
           console.log(`🎮 Game: ${config.gameName || 'Unknown'} (${config.placeId || 'Unknown'})`);
           console.log(`⏱️ Delay: ${config.delaySec || 'Unknown'}s`);
           if (config.linkCode) {
@@ -1774,9 +1768,7 @@ class ConfigEditor {
           }
 
           // Ẩn username chỉ hiện 3 ký tự cuối
-          const maskedUsername = config.username && config.username.length > 3 ?
-            '*'.repeat(config.username.length - 3) + config.username.slice(-3) :
-            (config.username || 'Unknown');
+          const maskedUsername = Utils.maskSensitiveInfo(config.username);
 
           // Hiển thị delay thay vì userId
           const delayDisplay = `${config.delaySec || 'Unknown'}s`;
