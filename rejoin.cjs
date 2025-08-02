@@ -930,7 +930,8 @@ class MultiRejoinTool {
       });
     }
 
-    const configs = Utils.loadMultiConfigs();
+    // Tạo config mới hoàn toàn, không load config cũ
+    const configs = {};
     
     for (const { packageName, packageInfo } of selectedPackages) {
       console.clear();
