@@ -135,7 +135,14 @@ class Utils {
     if (!fs.existsSync(WEBHOOK_CONFIG_PATH)) return null;
     try {
       const raw = fs.readFileSync(WEBHOOK_CONFIG_PATH);
-      return JSON.parse(raw);
+      const config = JSON.parse(raw);
+      
+      // Đảm bảo trường enabled tồn tại (backward compatibility)
+      if (config && typeof config.enabled === 'undefined') {
+        config.enabled = true;
+      }
+      
+      return config;
     } catch {
       return null;
     }
@@ -1214,7 +1221,7 @@ async runMultiInstanceLoop() {
     }
 
     // Gửi webhook theo định kỳ
-    if (webhookConfig && webhookCounter % (webhookConfig.intervalMinutes * 60) === 0 && webhookCounter > 0) {
+    if (webhookConfig && webhookConfig.enabled && webhookCounter % (webhookConfig.intervalMinutes * 60) === 0 && webhookCounter > 0) {
       console.log(`\n📤 Đang gửi webhook status...`);
       await webhookManager.sendStatusWebhook(this.instances, this.startTime);
     }
@@ -1243,11 +1250,16 @@ async runMultiInstanceLoop() {
       if (webhookConfig) {
         const urlParts = webhookConfig.url.split('/');
         const webhookId = urlParts[urlParts.length - 2] || 'unknown';
-        console.log(`\n🔗 Webhook Status: ID ${webhookId} - [ĐÃ ẨN VÌ LÝ DO BẢO MẬT]`);
-        const nextWebhookIn = (webhookConfig.intervalMinutes * 60) - (webhookCounter % (webhookConfig.intervalMinutes * 60));
-        const minutes = Math.floor(nextWebhookIn / 60);
-        const seconds = nextWebhookIn % 60;
-        console.log(`🔗 Webhook: ${minutes}m ${seconds}s nữa sẽ gửi báo cáo (${webhookConfig.intervalMinutes} phút/lần)`);
+        const statusText = webhookConfig.enabled ? '✅ Đã bật' : '❌ Đã tắt';
+        console.log(`\n🔗 Webhook Status: ID ${webhookId} - ${statusText} - [ĐÃ ẨN VÌ LÝ DO BẢO MẬT]`);
+        if (webhookConfig.enabled) {
+          const nextWebhookIn = (webhookConfig.intervalMinutes * 60) - (webhookCounter % (webhookConfig.intervalMinutes * 60));
+          const minutes = Math.floor(nextWebhookIn / 60);
+          const seconds = nextWebhookIn % 60;
+          console.log(`🔗 Webhook: ${minutes}m ${seconds}s nữa sẽ gửi báo cáo (${webhookConfig.intervalMinutes} phút/lần)`);
+        } else {
+          console.log(`🔗 Webhook: Đã tắt - không gửi báo cáo tự động`);
+        }
       }
 
       console.log("\n💡 Nhấn Ctrl+C để dừng chương trình");
@@ -1279,18 +1291,21 @@ class WebhookManager {
       console.log(`🔗 Webhook ID: ${webhookId}`);
       console.log(`🔗 URL: [ĐÃ ẨN VÌ LÝ DO BẢO MẬT]`);
       console.log(`⏱️ Thời gian gửi: ${this.webhookConfig.intervalMinutes} phút`);
-      console.log(`📊 Trạng thái: ✅ Đã bật`);
+      console.log(`📊 Trạng thái: ${this.webhookConfig.enabled ? '✅ Đã bật' : '❌ Đã tắt'}`);
       
       console.log("\n🎯 Chọn hành động:");
       console.log("1. ✏️ Chỉnh sửa webhook");
-      console.log("2. ❌ Xóa webhook");
-      console.log("3. ⏭️ Quay lại menu chính");
+      console.log("2. 🔄 Bật/Tắt webhook");
+      console.log("3. ❌ Xóa webhook");
+      console.log("4. ⏭️ Quay lại menu chính");
       
-      const choice = await Utils.ask(rl, "\nNhập lựa chọn (1-3): ");
+      const choice = await Utils.ask(rl, "\nNhập lựa chọn (1-4): ");
       
       if (choice.trim() === "1") {
         await this.editWebhook(rl);
       } else if (choice.trim() === "2") {
+        await this.toggleWebhook(rl);
+      } else if (choice.trim() === "3") {
         await this.deleteWebhook(rl);
       } else {
         return;
@@ -1335,7 +1350,8 @@ class WebhookManager {
 
     this.webhookConfig = {
       url: webhookUrl.trim(),
-      intervalMinutes: intervalMinutes
+      intervalMinutes: intervalMinutes,
+      enabled: true
     };
 
     Utils.saveWebhookConfig(this.webhookConfig);
@@ -1377,12 +1393,43 @@ class WebhookManager {
 
     this.webhookConfig = {
       url: webhookUrl.trim(),
-      intervalMinutes: intervalMinutes
+      intervalMinutes: intervalMinutes,
+      enabled: this.webhookConfig.enabled // Giữ nguyên trạng thái enabled
     };
 
     Utils.saveWebhookConfig(this.webhookConfig);
     console.log("✅ Đã cập nhật cấu hình webhook!");
     await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
+  async toggleWebhook(rl) {
+    console.log("\n🔄 Bật/Tắt webhook:");
+    const urlParts = this.webhookConfig.url.split('/');
+    const webhookId = urlParts[urlParts.length - 2] || 'unknown';
+    console.log(`🔗 Webhook ID: ${webhookId}`);
+    console.log(`🔗 URL: [ĐÃ ẨN VÌ LÝ DO BẢO MẬT]`);
+    console.log(`⏱️ Thời gian gửi: ${this.webhookConfig.intervalMinutes} phút`);
+    console.log(`📊 Trạng thái hiện tại: ${this.webhookConfig.enabled ? '✅ Đã bật' : '❌ Đã tắt'}`);
+    
+    const newStatus = !this.webhookConfig.enabled;
+    const statusText = newStatus ? 'bật' : 'tắt';
+    
+    const confirm = await Utils.ask(rl, `\n⚠️ Bạn có muốn ${statusText} webhook? (y/N): `);
+    
+    if (confirm.toLowerCase() === 'y' || confirm.toLowerCase() === 'yes') {
+      this.webhookConfig.enabled = newStatus;
+      Utils.saveWebhookConfig(this.webhookConfig);
+      console.log(`✅ Đã ${statusText} webhook!`);
+      if (newStatus) {
+        console.log("📊 Webhook sẽ gửi báo cáo tự động.");
+      } else {
+        console.log("📊 Webhook sẽ không gửi báo cáo tự động.");
+      }
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    } else {
+      console.log("❌ Đã hủy thay đổi trạng thái webhook.");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
   }
 
   async deleteWebhook(rl) {
@@ -1408,7 +1455,7 @@ class WebhookManager {
   }
 
   async sendStatusWebhook(instances, startTime) {
-    if (!this.webhookConfig) return;
+    if (!this.webhookConfig || !this.webhookConfig.enabled) return;
 
     try {
       const stats = UIRenderer.getSystemStats();
