@@ -312,6 +312,85 @@ Timestamp: ${systemInfo.timestamp}
     return packages;
   }
 
+  static async checkPackageIntegrity(configs) {
+    console.log("\n🔍 Đang kiểm tra toàn vẹn packages...");
+    
+    try {
+      // Lấy danh sách packages hiện tại từ hệ thống
+      const result = execSync('su -c "pm list packages com.roblox"', { encoding: 'utf8' });
+      const systemPackages = new Set();
+      
+      const lines = result.split('\n').filter(line => line.includes('com.roblox'));
+      lines.forEach(line => {
+        const match = line.match(/package:(com\.roblox[^\s]+)/);
+        if (match) {
+          systemPackages.add(match[1]);
+        }
+      });
+
+      // Kiểm tra từng package trong config
+      const missingPackages = [];
+      const validPackages = [];
+
+      for (const [packageName, config] of Object.entries(configs)) {
+        if (!systemPackages.has(packageName)) {
+          missingPackages.push({
+            packageName,
+            displayName: this.getPackageDisplayName(packageName),
+            username: config.username
+          });
+        } else {
+          validPackages.push({
+            packageName,
+            displayName: this.getPackageDisplayName(packageName),
+            username: config.username
+          });
+        }
+      }
+
+      // Hiển thị kết quả kiểm tra
+      if (missingPackages.length > 0) {
+        console.log("\n❌ PHÁT HIỆN PACKAGES BỊ THIẾU:");
+        missingPackages.forEach(pkg => {
+          console.log(`   - ${pkg.displayName} (${pkg.packageName})`);
+          console.log(`     👤 User: ${pkg.username}`);
+        });
+        
+        console.log("\n✅ PACKAGES CÒN LẠI:");
+        validPackages.forEach(pkg => {
+          console.log(`   - ${pkg.displayName} (${pkg.packageName})`);
+          console.log(`     👤 User: ${pkg.username}`);
+        });
+
+        console.log("\n⚠️ CẢNH BÁO: Một số packages đã bị gỡ cài đặt hoặc không tồn tại!");
+        console.log("💡 Giải pháp: Vui lòng setup lại packages trước khi chạy auto rejoin.");
+        return false;
+      } else {
+        console.log("\n✅ KIỂM TRA TOÀN VẸN THÀNH CÔNG!");
+        console.log("📦 Tất cả packages trong config đều tồn tại:");
+        validPackages.forEach(pkg => {
+          console.log(`   - ${pkg.displayName} (${pkg.packageName})`);
+          console.log(`     👤 User: ${pkg.username}`);
+        });
+        return true;
+      }
+    } catch (e) {
+      console.error(`❌ Lỗi khi kiểm tra toàn vẹn packages: ${e.message}`);
+      console.log("⚠️ Không thể kiểm tra toàn vẹn - vui lòng thử lại sau!");
+      return false;
+    }
+  }
+
+  static getPackageDisplayName(packageName) {
+    if (packageName === 'com.roblox.client') {
+      return 'Roblox Quốc tế 🌍';
+    } else if (packageName === 'com.roblox.client.vnggames') {
+      return 'Roblox VNG 🇻🇳';
+    } else {
+      return `Roblox Custom (${packageName}) 🎮`;
+    }
+  }
+
   static getRobloxCookie(packageName) {
     console.log(`🍪 [${packageName}] Đang lấy cookie ROBLOSECURITY...`);
     let raw;
@@ -925,6 +1004,26 @@ class MultiRejoinTool {
   }
 
   async editConfigs(rl) {
+    const configs = Utils.loadMultiConfigs();
+    
+    if (Object.keys(configs).length === 0) {
+      console.log("❌ Chưa có config nào! Vui lòng chạy setup packages trước.");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await this.start();
+      return;
+    }
+
+    // Kiểm tra toàn vẹn packages trước khi cho phép chỉnh sửa config
+    const integrityCheck = await Utils.checkPackageIntegrity(configs);
+    if (!integrityCheck) {
+      console.log("\n🚫 KHÔNG THỂ CHỈNH SỬA CONFIG!");
+      console.log("💡 Vui lòng setup lại packages trước khi thử lại.");
+      console.log("\n⏳ Đang quay lại menu chính...");
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await this.start();
+      return;
+    }
+
     const configEditor = new ConfigEditor();
     const success = await configEditor.startEdit(rl);
     
@@ -958,6 +1057,17 @@ class MultiRejoinTool {
   if (Object.keys(configs).length === 0) {
     console.log("❌ Chưa có config nào! Vui lòng chạy setup packages trước.");
     await new Promise(resolve => setTimeout(resolve, 2000));
+    await this.start();
+    return;
+  }
+
+  // Kiểm tra toàn vẹn packages trước khi cho phép chạy auto rejoin
+  const integrityCheck = await Utils.checkPackageIntegrity(configs);
+  if (!integrityCheck) {
+    console.log("\n🚫 KHÔNG THỂ CHẠY AUTO REJOIN!");
+    console.log("💡 Vui lòng setup lại packages trước khi thử lại.");
+    console.log("\n⏳ Đang quay lại menu chính...");
+    await new Promise(resolve => setTimeout(resolve, 3000));
     await this.start();
     return;
   }
