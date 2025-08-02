@@ -313,8 +313,6 @@ Timestamp: ${systemInfo.timestamp}
   }
 
   static async checkPackageIntegrity(configs) {
-    console.log("\n🔍 Đang kiểm tra toàn vẹn packages...");
-    
     try {
       // Lấy danh sách packages hiện tại từ hệ thống
       const result = execSync('su -c "pm list packages com.roblox"', { encoding: 'utf8' });
@@ -366,12 +364,6 @@ Timestamp: ${systemInfo.timestamp}
         console.log("💡 Giải pháp: Vui lòng setup lại packages trước khi chạy auto rejoin.");
         return false;
       } else {
-        console.log("\n✅ KIỂM TRA TOÀN VẸN THÀNH CÔNG!");
-        console.log("📦 Tất cả packages trong config đều tồn tại:");
-        validPackages.forEach(pkg => {
-          console.log(`   - ${pkg.displayName} (${pkg.packageName})`);
-          console.log(`     👤 User: ${pkg.username}`);
-        });
         return true;
       }
     } catch (e) {
