@@ -595,7 +595,7 @@ class StatusHandler {
     if (presence.userPresenceType === 1) {
       return {
         status: "Online nhưng không trong game 😴",
-        info: "User online nhưng không trong game. Sử dụng launch thay vì kill! 🎮",
+        info: "User online nhưng không trong game.",
         shouldLaunch: true, // Use launch instead of kill for presence type 1
         rejoinOnly: true // Use rejoinOnly mode (don't kill, just launch)
       };
