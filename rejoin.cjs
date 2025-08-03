@@ -534,6 +534,7 @@ class GameSelector {
       }
       if (sub === "2") {
         console.log("\n📎 Dán link redirect sau khi vào private server.");
+        console.log("VD: https://www.roblox.com/games/2753915549/Blox-Fruits?privateServerLinkCode=77455530946706396026289495938493");
         while (true) {
           const link = await Utils.ask(rl, "\nDán link redirect đã chuyển hướng: ");
           const m = link.match(/\/games\/(\d+)[^?]*\?[^=]*=([\w-]+)/);
@@ -1697,6 +1698,7 @@ class ConfigEditor {
 
               case "3":
                 console.log("\n📎 Dán link redirect sau khi vào private server.");
+                console.log("VD: https://www.roblox.com/games/2753915549/Blox-Fruits?privateServerLinkCode=77455530946706396026289495938493");
                 while (true) {
                   try {
                     const link = await Utils.ask(rl, "\nDán link redirect đã chuyển hướng: ");
