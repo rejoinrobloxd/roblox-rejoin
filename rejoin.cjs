@@ -58,16 +58,7 @@ class Utils {
     }
   }
 
-  static async killApp(packageName) {
-    try {
-      console.log(`💀 [${packageName}] Đang kill app...`);
-      execSync(`am force-stop ${packageName}`, { stdio: 'pipe' });
-      console.log(`✅ [${packageName}] Đã kill thành công!`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (e) {
-      console.error(`❌ [${packageName}] Lỗi khi kill app: ${e.message}`);
-    }
-  }
+  // Removed killApp function - no longer needed
 
 
   static async launch(placeId, linkCode = null, packageName) {
@@ -437,19 +428,11 @@ Timestamp: ${systemInfo.timestamp}
 }
 
 class GameLauncher {
-  // FIX: Thêm async và await cho killApp/launch
   static async handleGameLaunch(shouldLaunch, placeId, linkCode, packageName, rejoinOnly = false) {
     if (shouldLaunch) {
       console.log(`🎯 [${packageName}] Starting launch process...`);
       
-      if (!rejoinOnly) {
-        // Đồng bộ kill app trước
-        await Utils.killApp(packageName);
-      } else {
-        console.log(`⚠️ [${packageName}] RejoinOnly mode - không kill app`);
-      }
-
-      // Sau đó mới launch
+      // Chỉ launch, không kill app
       await Utils.launch(placeId, linkCode, packageName);
       
       console.log(`✅ [${packageName}] Launch process completed!`);
@@ -578,7 +561,7 @@ class StatusHandler {
         status: "Không rõ ❓",
         info: "Không lấy được trạng thái hoặc thiếu rootPlaceId",
         shouldLaunch: true, // Always try to rejoin when presence is unclear
-        rejoinOnly: false
+        rejoinOnly: true
       };
     }
 
@@ -588,7 +571,7 @@ class StatusHandler {
         status: "Offline 💤", 
         info: "User offline! Tiến hành rejoin! 🚀",
         shouldLaunch: true, // Always rejoin when offline
-        rejoinOnly: false
+        rejoinOnly: true
       };
     }
 
@@ -608,7 +591,7 @@ class StatusHandler {
         status: "Không online 😴",
         info: "User không trong game. Đã mở lại game! 🎮",
         shouldLaunch: true, // Always rejoin when not in game
-        rejoinOnly: false
+        rejoinOnly: true
       };
     }
 
@@ -627,7 +610,7 @@ class StatusHandler {
       status: "Online ✅",
       info: "Đang ở đúng game 🎮",
       shouldLaunch: false,
-      rejoinOnly: false
+      rejoinOnly: true
     };
   }
 
@@ -1215,7 +1198,7 @@ async runMultiInstanceLoop() {
             config.placeId,
             config.linkCode,
             config.packageName,
-            analysis.rejoinOnly
+            true // Always use rejoinOnly mode (no kill, just launch)
           );
           statusHandler.updateJoinStatus(analysis.shouldLaunch);
         }
