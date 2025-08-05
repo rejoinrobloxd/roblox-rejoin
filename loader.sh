@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ⚙️ Cấu hình
-REPO_URL="https://github.com/NhinQuanhLanCuoi9999/roblox-rejoin"
+REPO_URL="https://github.com/rejoinrobloxd/roblox-rejoin"
 REPO_DIR="$HOME/roblox-rejoin"
-WORK_DIR="$REPO_DIR" # ← Đổi chỗ chạy về thẳng gốc repo luôn
+WORK_DIR="$REPO_DIR"
 LOADER_PATH="/data/data/com.termux/files/usr/bin/loader"
 
 # 🧠 Tạo alias 'loader' nếu chưa có
