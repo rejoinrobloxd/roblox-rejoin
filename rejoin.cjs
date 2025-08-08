@@ -376,10 +376,6 @@ Timestamp: ${systemInfo.timestamp}
       if (hasError) {
         console.log("\n❌ KIỂM TRA TOÀN VẸN THẤT BẠI!");
         console.log("🚫 Không thể chạy auto rejoin khi có lỗi toàn vẹn.");
-        console.log("🔧 Vui lòng:");
-        console.log("   1. Chạy 'Setup packages' để cấu hình lại");
-        console.log("   2. Hoặc 'Chỉnh sửa config' để sửa config hiện tại");
-        console.log("   3. Đảm bảo tất cả packages Roblox cần thiết đã được cài đặt");
         return false;
       }
       
