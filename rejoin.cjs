@@ -310,6 +310,96 @@ Timestamp: ${systemInfo.timestamp}
     return packages;
   }
 
+  static validatePackageIntegrity(configs) {
+    console.log("🔍 Đang kiểm tra toàn vẹn packages...");
+    
+    try {
+      // Lấy danh sách packages hiện có trong hệ thống
+      const systemPackages = this.detectAllRobloxPackages();
+      const systemPackageNames = Object.keys(systemPackages);
+      
+      // Lấy danh sách packages trong config
+      const configPackageNames = Object.keys(configs);
+      
+      if (configPackageNames.length === 0) {
+        console.log("❌ Không có config nào trong file JSON!");
+        console.log("🔧 Vui lòng chạy setup packages để tạo config.");
+        return false;
+      }
+      
+      if (systemPackageNames.length === 0) {
+        console.log("❌ Không tìm thấy package Roblox nào trong hệ thống!");
+        console.log("📱 Vui lòng cài đặt ít nhất một app Roblox.");
+        return false;
+      }
+      
+      // Kiểm tra packages trong config có tồn tại trong hệ thống không
+      const missingPackages = configPackageNames.filter(pkg => !systemPackageNames.includes(pkg));
+      
+      // Kiểm tra packages trong hệ thống có dư không (không có trong config)
+      const extraPackages = systemPackageNames.filter(pkg => !configPackageNames.includes(pkg));
+      
+      let hasError = false;
+      
+      if (missingPackages.length > 0) {
+        console.log("\n❌ PACKAGES THIẾU - Có trong config nhưng không có trong hệ thống:");
+        missingPackages.forEach(pkg => {
+          const displayName = systemPackages[pkg]?.displayName || pkg;
+          console.log(`  ⚠️ ${displayName} (${pkg})`);
+        });
+        console.log("🔧 Giải pháp: Cài đặt lại packages này hoặc xóa khỏi config.");
+        hasError = true;
+      }
+      
+      if (extraPackages.length > 0) {
+        console.log("\n⚠️ PACKAGES DƯ - Có trong hệ thống nhưng không có trong config:");
+        extraPackages.forEach(pkg => {
+          const displayName = systemPackages[pkg]?.displayName || pkg;
+          console.log(`  📦 ${displayName} (${pkg})`);
+        });
+        console.log("🔧 Giải pháp: Thêm vào config bằng cách chạy setup packages hoặc bỏ qua.");
+      }
+      
+      // Kiểm tra từng config có hợp lệ không
+      for (const [packageName, config] of Object.entries(configs)) {
+        if (!config.username || !config.userId || !config.placeId || !config.delaySec) {
+          console.log(`\n❌ CONFIG KHÔNG ĐẦY ĐỦ cho ${packageName}:`);
+          if (!config.username) console.log("  ⚠️ Thiếu username");
+          if (!config.userId) console.log("  ⚠️ Thiếu userId");
+          if (!config.placeId) console.log("  ⚠️ Thiếu placeId");
+          if (!config.delaySec) console.log("  ⚠️ Thiếu delaySec");
+          console.log("🔧 Giải pháp: Chạy lại setup packages hoặc sửa config.");
+          hasError = true;
+        }
+      }
+      
+      if (hasError) {
+        console.log("\n❌ KIỂM TRA TOÀN VẸN THẤT BẠI!");
+        console.log("🚫 Không thể chạy auto rejoin khi có lỗi toàn vẹn.");
+        console.log("🔧 Vui lòng:");
+        console.log("   1. Chạy 'Setup packages' để cấu hình lại");
+        console.log("   2. Hoặc 'Chỉnh sửa config' để sửa config hiện tại");
+        console.log("   3. Đảm bảo tất cả packages Roblox cần thiết đã được cài đặt");
+        return false;
+      }
+      
+      const matchingPackages = configPackageNames.filter(pkg => systemPackageNames.includes(pkg));
+      console.log(`✅ Kiểm tra toàn vẹn thành công!`);
+      console.log(`📊 Có ${matchingPackages.length}/${configPackageNames.length} packages khả dụng`);
+      
+      if (extraPackages.length > 0) {
+        console.log(`ℹ️ Có ${extraPackages.length} packages dư (không ảnh hưởng đến hoạt động)`);
+      }
+      
+      return true;
+      
+    } catch (e) {
+      console.error(`❌ Lỗi khi kiểm tra toàn vẹn: ${e.message}`);
+      console.log("🔧 Vui lòng kiểm tra lại hệ thống và config file.");
+      return false;
+    }
+  }
+
 
 
   static getRobloxCookie(packageName) {
@@ -784,9 +874,9 @@ class MultiRejoinTool {
       
       if (visitCount) {
         console.log(`\nTổng lượt chạy: ${visitCount}`);
-        console.log(`\ndiscord.gg/37VJXk9hH4`);
+        console.log(`discord.gg/37VJXk9hH4`);
       }
-      console.log("\n🎯 Multi-Instance Roblox Rejoin Tool");
+      console.log("\n🎯 Rejoin Tool");
       console.log("1. 🚀 Bắt đầu auto rejoin");
       console.log("2. ⚙️ Setup packages");
       console.log("3. ✏️ Chỉnh sửa config");
@@ -977,6 +1067,17 @@ class MultiRejoinTool {
   if (Object.keys(configs).length === 0) {
     console.log("❌ Chưa có config nào! Vui lòng chạy setup packages trước.");
     await new Promise(resolve => setTimeout(resolve, 2000));
+    await this.start();
+    return;
+  }
+
+  // Kiểm tra toàn vẹn packages trước khi bắt đầu
+  console.log("\n🔒 Kiểm tra toàn vẹn hệ thống...");
+  const isValid = Utils.validatePackageIntegrity(configs);
+  
+  if (!isValid) {
+    console.log("\n⏳ Quay lại menu chính sau 5 giây...");
+    await new Promise(resolve => setTimeout(resolve, 5000));
     await this.start();
     return;
   }
