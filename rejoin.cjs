@@ -28,6 +28,7 @@ const Table = require("cli-table3");
 const CONFIG_PATH = path.join(__dirname, "multi_configs.json");
 const WEBHOOK_CONFIG_PATH = path.join(__dirname, "webhook_config.json");
 const PREFIX_CONFIG_PATH = path.join(__dirname, "package_prefix_config.json");
+const ACTIVITY_CONFIG_PATH = path.join(__dirname, "activity_config.json");
 const util = require("util");
 const figlet = require("figlet");
 const _boxen = require("boxen");
@@ -66,24 +67,37 @@ class Utils {
     const url = linkCode
       ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
       : `roblox://placeID=${placeId}`;
-    
+
     console.log(`🚀 [${packageName}] Đang mở: ${url}`);
     if (linkCode) console.log(`✨ [${packageName}] Đã join bằng linkCode: ${linkCode}`);
 
-    // Xác định activity dựa trên package name
+    // Xác định activity dựa trên package name với logic prefix động
     let activity;
     const prefix = this.loadPackagePrefixConfig();
-    if (packageName === `${prefix}.client`) {
-      activity = `${prefix}.client.ActivityProtocolLaunch`;
-    } else if (packageName === `${prefix}.client.vnggames`) {
-      activity = `${prefix}.client.ActivityProtocolLaunch`;
+    const customActivity = this.loadActivityConfig();
+
+    // Nếu có activity tùy chỉnh, sử dụng nó
+    if (customActivity) {
+      activity = customActivity;
+      console.log(`🎯 [${packageName}] Sử dụng activity tùy chỉnh: ${activity}`);
     } else {
-      // Cho các package Roblox custom, sử dụng activity chuẩn
-      activity = `${prefix}.client.ActivityProtocolLaunch`;
+      // Logic mới: Activity sẽ luôn khớp với prefix của package
+      if (packageName.startsWith(`${prefix}.client.`)) {
+        // Nếu package là custom (có thêm suffix sau client)
+        // Ví dụ: com.robox.client.vnggameu -> com.robox.client.vnggameu/com.robox.client.ActivityProtocolLaunch
+        activity = `${prefix}.client.ActivityProtocolLaunch`;
+      } else if (packageName === `${prefix}.client`) {
+        // Package chính: com.robox.client -> com.robox.client/com.robox.client.ActivityProtocolLaunch
+        activity = `${prefix}.client.ActivityProtocolLaunch`;
+      } else {
+        // Fallback: Sử dụng activity chuẩn với prefix hiện tại
+        activity = `${prefix}.client.ActivityProtocolLaunch`;
+      }
+      console.log(`🎯 [${packageName}] Sử dụng activity mặc định: ${activity}`);
     }
 
     const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}" --activity-clear-top`;
-    
+
     try {
       execSync(command, { stdio: 'pipe' });
       console.log(`✅ [${packageName}] Launch command executed!`);
@@ -162,6 +176,30 @@ class Utils {
       return config.prefix || "com.roblox";
     } catch {
       return "com.roblox";
+    }
+  }
+
+  static saveActivityConfig(activity) {
+    try {
+      const config = { activity: activity };
+      fs.writeFileSync(ACTIVITY_CONFIG_PATH, JSON.stringify(config, null, 2));
+      console.log(`💾 Đã lưu activity: ${activity}`);
+    } catch (e) {
+      console.error(`❌ Không thể lưu activity config: ${e.message}`);
+    }
+  }
+
+  static loadActivityConfig() {
+    if (!fs.existsSync(ACTIVITY_CONFIG_PATH)) {
+      // Trả về activity mặc định nếu chưa có config
+      return null;
+    }
+    try {
+      const raw = fs.readFileSync(ACTIVITY_CONFIG_PATH);
+      const config = JSON.parse(raw);
+      return config.activity || null;
+    } catch {
+      return null;
     }
   }
 
@@ -918,10 +956,11 @@ class MultiRejoinTool {
       console.log("2. ⚙️ Setup packages");
       console.log("3. ✏️ Chỉnh sửa config");
       console.log("4. 📦 Chỉnh prefix package Roblox");
-      console.log("5. 🔗 Cấu hình webhook");
+      console.log("5. 🎯 Chỉnh activity Roblox");
+      console.log("6. 🔗 Cấu hình webhook");
 
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      const choice = await Utils.ask(rl, "\nChọn option (1-5): ");
+      const choice = await Utils.ask(rl, "\nChọn option (1-6): ");
 
       try {
         if (choice.trim() === "1") {
@@ -937,6 +976,9 @@ class MultiRejoinTool {
           await this.configurePackagePrefix(rl);
           rl.close();
         } else if (choice.trim() === "5") {
+          await this.configureActivity(rl);
+          rl.close();
+        } else if (choice.trim() === "6") {
           await this.setupWebhook(rl);
           rl.close();
         } else {
@@ -1152,6 +1194,74 @@ class MultiRejoinTool {
     await this.start();
   }
 
+  async configureActivity(rl) {
+    console.clear();
+    console.log(UIRenderer.renderTitle());
+    console.log("\n🎯 Cấu hình Activity Roblox");
+
+    // Hiển thị activity hiện tại
+    const currentActivity = Utils.loadActivityConfig();
+    const currentPrefix = Utils.loadPackagePrefixConfig();
+
+    if (currentActivity) {
+      console.log(`\n📋 Activity tùy chỉnh hiện tại: ${currentActivity}`);
+      console.log(`⚠️  Đang sử dụng activity tùy chỉnh thay vì activity mặc định!`);
+    } else {
+      console.log(`\n📋 Activity hiện tại: Sử dụng activity mặc định (${currentPrefix}.client.ActivityProtocolLaunch)`);
+    }
+
+    console.log("\n🎯 Chọn hành động:");
+    console.log("1. ✏️ Thay đổi activity");
+    console.log("2. 🔄 Đặt lại về activity mặc định");
+    console.log("3. ⏭️ Quay lại menu chính");
+
+    const choice = await Utils.ask(rl, "\nNhập lựa chọn (1-3): ");
+
+    if (choice.trim() === "1") {
+      console.log("\n✏️ Thay đổi activity Roblox");
+      console.log(`Ví dụ: ${currentPrefix}.client.ActivityProtocolLaunch`);
+      console.log(`        ${currentPrefix}.client.vnggames.ActivityProtocolLaunch`);
+      console.log(`        com.roblox.client.ActivityProtocolLaunch`);
+      console.log("\n⚠️  Lưu ý: Activity phải khớp với package name để hoạt động đúng!");
+
+      let newActivity;
+      while (true) {
+        newActivity = await Utils.ask(rl, "Nhập activity mới: ");
+        if (newActivity.trim()) {
+          break;
+        }
+        console.log("❌ Activity không được để trống!");
+      }
+
+      Utils.saveActivityConfig(newActivity.trim());
+      console.log(`✅ Đã cập nhật activity thành: ${newActivity.trim()}`);
+      console.log(`⚠️  Activity tùy chỉnh sẽ được sử dụng cho tất cả packages!`);
+
+    } else if (choice.trim() === "2") {
+      if (currentActivity) {
+        Utils.saveActivityConfig(null);
+        console.log("✅ Đã đặt lại về activity mặc định!");
+        console.log(`📋 Activity mặc định: ${currentPrefix}.client.ActivityProtocolLaunch`);
+      } else {
+        console.log("ℹ️ Đã đang sử dụng activity mặc định!");
+      }
+
+    } else if (choice.trim() === "3") {
+      // Quay lại menu chính
+      console.log("\n⏳ Đang quay lại menu chính...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await this.start();
+      return;
+    } else {
+      console.log("❌ Lựa chọn không hợp lệ!");
+    }
+
+    // Quay lại menu chính
+    console.log("\n⏳ Đang quay lại menu chính...");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await this.start();
+  }
+
 
 
   async startAutoRejoin(rl) {
@@ -1186,14 +1296,15 @@ class MultiRejoinTool {
   let index = 1;
   const packageList = [];
   for (const [packageName, config] of Object.entries(configs)) {
-    let packageDisplay;
-    if (packageName === 'com.roblox.client') {
-      packageDisplay = 'Global 🌍';
-    } else if (packageName === 'com.roblox.client.vnggames') {
-      packageDisplay = 'VNG 🇻🇳';
-    } else {
-      packageDisplay = packageName;
-    }
+  let packageDisplay;
+  const prefix = Utils.loadPackagePrefixConfig();
+  if (packageName === `${prefix}.client`) {
+    packageDisplay = 'Global 🌍';
+  } else if (packageName === `${prefix}.client.vnggames`) {
+    packageDisplay = 'VNG 🇻🇳';
+  } else {
+    packageDisplay = packageName;
+  }
 
     // Ẩn username chỉ hiện 3 ký tự cuối
     const maskedUsername = Utils.maskSensitiveInfo(config.username);
