@@ -27,6 +27,8 @@ const os = require("os");
 const Table = require("cli-table3");
 const CONFIG_PATH = path.join(__dirname, "multi_configs.json");
 const WEBHOOK_CONFIG_PATH = path.join(__dirname, "webhook_config.json");
+const PREFIX_CONFIG_PATH = path.join(__dirname, "package_prefix_config.json");
+const ACTIVITY_CONFIG_PATH = path.join(__dirname, "activity_config.json");
 const util = require("util");
 const figlet = require("figlet");
 const _boxen = require("boxen");
@@ -36,26 +38,8 @@ const screenshot = require("screenshot-desktop");
 class Utils {
   static ensureRoot() {
     try {
-      // Trong Termux hoặc khi không có su, bỏ qua yêu cầu root để tránh treo
-      const isTermux = !!process.env.TERMUX_VERSION;
-      let hasSu = false;
-      try {
-        execSync("command -v su || which su", { stdio: "pipe" });
-        hasSu = true;
-      } catch (_) {
-        hasSu = false;
-      }
-
       const uid = execSync("id -u").toString().trim();
       if (uid !== "0") {
-        if (isTermux && !hasSu) {
-          console.log("⚠️ Không có quyền root trong Termux. Tiếp tục ở chế độ không root.");
-          return;
-        }
-        if (!hasSu) {
-          console.log("⚠️ Không tìm thấy 'su'. Tiếp tục không root.");
-          return;
-        }
         const node = execSync("which node").toString().trim();
         console.log("Cần quyền root, chuyển qua su...");
         execSync(`su -c "${node} ${__filename}"`, { stdio: "inherit" });
@@ -83,23 +67,37 @@ class Utils {
     const url = linkCode
       ? `roblox://placeID=${placeId}&linkCode=${linkCode}`
       : `roblox://placeID=${placeId}`;
-    
+
     console.log(`🚀 [${packageName}] Đang mở: ${url}`);
     if (linkCode) console.log(`✨ [${packageName}] Đã join bằng linkCode: ${linkCode}`);
 
-    // Xác định activity dựa trên package name
+    // Xác định activity dựa trên package name với logic prefix động
     let activity;
-    if (packageName === "com.roblox.client") {
-      activity = "com.roblox.client.ActivityProtocolLaunch";
-    } else if (packageName === "com.roblox.client.vnggames") {
-      activity = "com.roblox.client.ActivityProtocolLaunch";
+    const prefix = this.loadPackagePrefixConfig();
+    const customActivity = this.loadActivityConfig();
+
+    // Nếu có activity tùy chỉnh, sử dụng nó
+    if (customActivity) {
+      activity = customActivity;
+      console.log(`🎯 [${packageName}] Sử dụng activity tùy chỉnh: ${activity}`);
     } else {
-      // Cho các package Roblox custom, sử dụng activity chuẩn
-      activity = "com.roblox.client.ActivityProtocolLaunch";
+      // Logic mới: Activity sẽ luôn khớp với prefix của package
+      if (packageName.startsWith(`${prefix}.client.`)) {
+        // Nếu package là custom (có thêm suffix sau client)
+        // Ví dụ: com.robox.client.vnggameu -> com.robox.client.vnggameu/com.robox.client.ActivityProtocolLaunch
+        activity = `${prefix}.client.ActivityProtocolLaunch`;
+      } else if (packageName === `${prefix}.client`) {
+        // Package chính: com.robox.client -> com.robox.client/com.robox.client.ActivityProtocolLaunch
+        activity = `${prefix}.client.ActivityProtocolLaunch`;
+      } else {
+        // Fallback: Sử dụng activity chuẩn với prefix hiện tại
+        activity = `${prefix}.client.ActivityProtocolLaunch`;
+      }
+      console.log(`🎯 [${packageName}] Sử dụng activity mặc định: ${activity}`);
     }
 
     const command = `am start -n ${packageName}/${activity} -a android.intent.action.VIEW -d "${url}" --activity-clear-top`;
-    
+
     try {
       execSync(command, { stdio: 'pipe' });
       console.log(`✅ [${packageName}] Launch command executed!`);
@@ -145,13 +143,61 @@ class Utils {
     try {
       const raw = fs.readFileSync(WEBHOOK_CONFIG_PATH);
       const config = JSON.parse(raw);
-      
+
       // Đảm bảo trường enabled tồn tại (backward compatibility)
       if (config && typeof config.enabled === 'undefined') {
         config.enabled = true;
       }
-      
+
       return config;
+    } catch {
+      return null;
+    }
+  }
+
+  static savePackagePrefixConfig(prefix) {
+    try {
+      const config = { prefix: prefix };
+      fs.writeFileSync(PREFIX_CONFIG_PATH, JSON.stringify(config, null, 2));
+      console.log(`💾 Đã lưu prefix package: ${prefix}`);
+    } catch (e) {
+      console.error(`❌ Không thể lưu prefix config: ${e.message}`);
+    }
+  }
+
+  static loadPackagePrefixConfig() {
+    if (!fs.existsSync(PREFIX_CONFIG_PATH)) {
+      // Trả về prefix mặc định nếu chưa có config
+      return "com.roblox";
+    }
+    try {
+      const raw = fs.readFileSync(PREFIX_CONFIG_PATH);
+      const config = JSON.parse(raw);
+      return config.prefix || "com.roblox";
+    } catch {
+      return "com.roblox";
+    }
+  }
+
+  static saveActivityConfig(activity) {
+    try {
+      const config = { activity: activity };
+      fs.writeFileSync(ACTIVITY_CONFIG_PATH, JSON.stringify(config, null, 2));
+      console.log(`💾 Đã lưu activity: ${activity}`);
+    } catch (e) {
+      console.error(`❌ Không thể lưu activity config: ${e.message}`);
+    }
+  }
+
+  static loadActivityConfig() {
+    if (!fs.existsSync(ACTIVITY_CONFIG_PATH)) {
+      // Trả về activity mặc định nếu chưa có config
+      return null;
+    }
+    try {
+      const raw = fs.readFileSync(ACTIVITY_CONFIG_PATH);
+      const config = JSON.parse(raw);
+      return config.activity || null;
     } catch {
       return null;
     }
@@ -270,7 +316,7 @@ Timestamp: ${systemInfo.timestamp}
           headers: {
             'Content-Type': `multipart/form-data; boundary=${boundary}`,
             'Content-Length': multipartBody.length
-          }
+          },
         });
       } else {
         // Gửi chỉ embed
@@ -296,25 +342,28 @@ Timestamp: ${systemInfo.timestamp}
 
   static detectAllRobloxPackages() {
     const packages = {};
-    
+
     try {
-      const result = execSync("pm list packages | grep com.roblox", { encoding: 'utf8' });
-      const lines = result.split('\n').filter(line => line.includes('com.roblox'));
-      
+      // Sử dụng prefix có thể cấu hình thay vì hardcode
+      const prefix = this.loadPackagePrefixConfig();
+      const result = execSync(`pm list packages | grep ${prefix}`, { encoding: 'utf8' });
+      const lines = result.split('\n').filter(line => line.includes(prefix));
+
       lines.forEach(line => {
-        const match = line.match(/package:(com\.roblox[^\s]+)/);
+        const match = line.match(new RegExp(`package:(${prefix.replace(/\./g, '\\.')}[^\\s]+)`));
         if (match) {
           const packageName = match[1];
           let displayName = packageName;
-          
-          if (packageName === 'com.roblox.client') {
+
+          // So sánh với prefix động thay vì hardcode
+          if (packageName === `${prefix}.client`) {
             displayName = 'Roblox Quốc tế 🌍';
-          } else if (packageName === 'com.roblox.client.vnggames') {
+          } else if (packageName === `${prefix}.client.vnggames`) {
             displayName = 'Roblox VNG 🇻🇳';
           } else {
             displayName = `Roblox Custom (${packageName}) 🎮`;
           }
-          
+
           packages[packageName] = {
             packageName,
             displayName
@@ -418,36 +467,64 @@ Timestamp: ${systemInfo.timestamp}
 
   static getRobloxCookie(packageName) {
     console.log(`🍪 [${packageName}] Đang lấy cookie ROBLOSECURITY...`);
-    let raw;
+    
     try {
-      raw = execSync(
-        `cat /data/data/${packageName}/app_webview/Default/Cookies | strings | grep ROBLOSECURITY`
-      ).toString();
-    } catch {
+      const cookiesPath = `/data/data/${packageName}/app_webview/Default/Cookies`;
+      const sdcardPath = `/sdcard/cookies_temp_${Date.now()}.db`;
+      
+      // 1️⃣ Copy file Cookies sang sdcard
       try {
-        raw = execSync(
-          `su -c sh -c 'cat /data/data/${packageName}/app_webview/Default/Cookies | strings | grep ROBLOSECURITY'`
-        ).toString();
+        execSync(`cp "${cookiesPath}" "${sdcardPath}"`);
+      } catch {
+        // Thử với su nếu không có quyền
+        execSync(`su -c "cp '${cookiesPath}' '${sdcardPath}'"`);
+      }
+      
+      // 2️⃣ Sử dụng sqlite3 để query cookie
+      let cookieValue;
+      try {
+        const result = execSync(`sqlite3 "${sdcardPath}" "SELECT value FROM cookies WHERE name = '.ROBLOSECURITY' LIMIT 1"`).toString().trim();
+        
+        if (!result) {
+          console.error(`❌ [${packageName}] Không tìm được cookie ROBLOSECURITY trong database!`);
+          execSync(`rm -f "${sdcardPath}"`).catch(() => {});
+          return null;
+        }
+        
+        cookieValue = result;
       } catch (err) {
-        console.error(`❌ [${packageName}] Không thể đọc cookie bằng cả 2 cách.`);
+        console.error(`❌ [${packageName}] Lỗi khi query sqlite3: ${err.message}`);
+        execSync(`rm -f "${sdcardPath}"`).catch(() => {});
         return null;
       }
-    }
-
-    const match = raw.match(/\.ROBLOSECURITY_([^\s\/]+)/);
-    if (!match) {
-      console.error(`❌ [${packageName}] Không tìm được cookie ROBLOSECURITY!`);
+      
+      // 3️⃣ Xóa file temp
+      try {
+        execSync(`rm -f "${sdcardPath}"`);
+      } catch {}
+      
+      // 4️⃣ Format cookie nếu cần
+      if (!cookieValue.startsWith("_")) {
+        cookieValue = "_" + cookieValue;
+      }
+      
+      return `.ROBLOSECURITY=${cookieValue}`;
+      
+    } catch (e) {
+      console.error(`❌ [${packageName}] Lỗi khi lấy cookie: ${e.message}`);
       return null;
     }
-
-    let cookieValue = match[1].trim();
-    if (!cookieValue.startsWith("_")) cookieValue = "_" + cookieValue;
-    return `.ROBLOSECURITY=${cookieValue}`;
   }
 
   static async curlPastebinVisits() {
     try {
-      const res = await axios.get("https://pastebin.com/Q9yk1GNq", { timeout: 5000 });
+      // Thêm timeout 5 giây cho request
+      const res = await axios.get("https://pastebin.com/Q9yk1GNq", {
+        timeout: 5000, // 5 seconds timeout
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
       const html = res.data;
       // Sửa lại regex: chỉ cần escape đúng cho regex literal
       const match = html.match(/<div class="visits"[^>]*>\s*([\d,.]+)\s*<\/div>/);
@@ -456,6 +533,7 @@ Timestamp: ${systemInfo.timestamp}
       }
       return null;
     } catch (e) {
+      // Không log lỗi để tránh ảnh hưởng đến logic main
       return null;
     }
   }
@@ -784,9 +862,10 @@ class UIRenderer {
 
     instances.forEach(instance => {
       let packageDisplay;
-      if (instance.packageName === 'com.roblox.client') {
+      const prefix = Utils.loadPackagePrefixConfig();
+      if (instance.packageName === `${prefix}.client`) {
         packageDisplay = 'Global 🌍';
-      } else if (instance.packageName === 'com.roblox.client.vnggames') {
+      } else if (instance.packageName === `${prefix}.client.vnggames`) {
         packageDisplay = 'VNG 🇻🇳';
       } else {
         packageDisplay = instance.packageName;
@@ -831,9 +910,10 @@ class UIRenderer {
     let index = 1;
     for (const [packageName, config] of Object.entries(configs)) {
       let packageDisplay;
-      if (packageName === 'com.roblox.client') {
+      const prefix = Utils.loadPackagePrefixConfig();
+      if (packageName === `${prefix}.client`) {
         packageDisplay = 'Global 🌍';
-      } else if (packageName === 'com.roblox.client.vnggames') {
+      } else if (packageName === `${prefix}.client.vnggames`) {
         packageDisplay = 'VNG 🇻🇳';
       } else {
         packageDisplay = packageName;
@@ -869,7 +949,14 @@ class MultiRejoinTool {
       Utils.enableWakeLock();
 
       console.clear();
-      // Hiển thị tiêu đề trước khi gọi mạng để tránh màn hình đen nếu mạng treo
+      let visitCount = null;
+      try {
+        visitCount = await Utils.curlPastebinVisits();
+      } catch (e) {
+        // Không log lỗi và không hiển thị gì để tránh ảnh hưởng đến logic main
+        visitCount = null;
+      }
+      
       try {
         console.log(UIRenderer.renderTitle());
       } catch (e) {
@@ -879,14 +966,7 @@ class MultiRejoinTool {
 ║    Bản quyền thuộc về The Real Dawn  ║
 ╚══════════════════════════════════════╝`);
       }
-
-      let visitCount = null;
-      try {
-        visitCount = await Utils.curlPastebinVisits();
-      } catch (e) {
-        console.log("⚠️ Không thể lấy số lượt truy cập");
-      }
-
+      
       if (visitCount) {
         console.log(`\nTổng lượt chạy: ${visitCount}`);
         console.log(`discord.gg/37VJXk9hH4`);
@@ -895,10 +975,12 @@ class MultiRejoinTool {
       console.log("1. 🚀 Bắt đầu auto rejoin");
       console.log("2. ⚙️ Setup packages");
       console.log("3. ✏️ Chỉnh sửa config");
-      console.log("4. 🔗 Cấu hình webhook");
+      console.log("4. 📦 Chỉnh prefix package Roblox");
+      console.log("5. 🎯 Chỉnh activity Roblox");
+      console.log("6. 🔗 Cấu hình webhook");
 
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      const choice = await Utils.ask(rl, "\nChọn option (1-4): ");
+      const choice = await Utils.ask(rl, "\nChọn option (1-6): ");
 
       try {
         if (choice.trim() === "1") {
@@ -911,6 +993,12 @@ class MultiRejoinTool {
           await this.editConfigs(rl);
           rl.close();
         } else if (choice.trim() === "4") {
+          await this.configurePackagePrefix(rl);
+          rl.close();
+        } else if (choice.trim() === "5") {
+          await this.configureActivity(rl);
+          rl.close();
+        } else if (choice.trim() === "6") {
           await this.setupWebhook(rl);
           rl.close();
         } else {
@@ -1067,7 +1155,127 @@ class MultiRejoinTool {
   async setupWebhook(rl) {
     const webhookManager = new WebhookManager();
     await webhookManager.setupWebhook(rl);
-    
+
+    // Quay lại menu chính
+    console.log("\n⏳ Đang quay lại menu chính...");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await this.start();
+  }
+
+  async configurePackagePrefix(rl) {
+    console.clear();
+    console.log(UIRenderer.renderTitle());
+    console.log("\n📦 Cấu hình Prefix Package Roblox");
+
+    // Hiển thị prefix hiện tại
+    const currentPrefix = Utils.loadPackagePrefixConfig();
+    console.log(`\n📋 Prefix hiện tại: ${currentPrefix}`);
+
+    console.log("\n🎯 Chọn hành động:");
+    console.log("1. ✏️ Thay đổi prefix");
+    console.log("2. 🔄 Đặt lại về mặc định (com.roblox)");
+    console.log("3. ⏭️ Quay lại menu chính");
+
+    const choice = await Utils.ask(rl, "\nNhập lựa chọn (1-3): ");
+
+    if (choice.trim() === "1") {
+      console.log("\n✏️ Thay đổi prefix package Roblox");
+      console.log("Ví dụ: com.roblox, con.roblx, com.robloxclone, etc.");
+
+      let newPrefix;
+      while (true) {
+        newPrefix = await Utils.ask(rl, "Nhập prefix mới: ");
+        if (newPrefix.trim()) {
+          break;
+        }
+        console.log("❌ Prefix không được để trống!");
+      }
+
+      Utils.savePackagePrefixConfig(newPrefix.trim());
+      console.log(`✅ Đã cập nhật prefix thành: ${newPrefix.trim()}`);
+
+    } else if (choice.trim() === "2") {
+      Utils.savePackagePrefixConfig("com.roblox");
+      console.log("✅ Đã đặt lại prefix về mặc định: com.roblox");
+
+    } else if (choice.trim() === "3") {
+      // Quay lại menu chính
+      console.log("\n⏳ Đang quay lại menu chính...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await this.start();
+      return;
+    } else {
+      console.log("❌ Lựa chọn không hợp lệ!");
+    }
+
+    // Quay lại menu chính
+    console.log("\n⏳ Đang quay lại menu chính...");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await this.start();
+  }
+
+  async configureActivity(rl) {
+    console.clear();
+    console.log(UIRenderer.renderTitle());
+    console.log("\n🎯 Cấu hình Activity Roblox");
+
+    // Hiển thị activity hiện tại
+    const currentActivity = Utils.loadActivityConfig();
+    const currentPrefix = Utils.loadPackagePrefixConfig();
+
+    if (currentActivity) {
+      console.log(`\n📋 Activity tùy chỉnh hiện tại: ${currentActivity}`);
+      console.log(`⚠️  Đang sử dụng activity tùy chỉnh thay vì activity mặc định!`);
+    } else {
+      console.log(`\n📋 Activity hiện tại: Sử dụng activity mặc định (${currentPrefix}.client.ActivityProtocolLaunch)`);
+    }
+
+    console.log("\n🎯 Chọn hành động:");
+    console.log("1. ✏️ Thay đổi activity");
+    console.log("2. 🔄 Đặt lại về activity mặc định");
+    console.log("3. ⏭️ Quay lại menu chính");
+
+    const choice = await Utils.ask(rl, "\nNhập lựa chọn (1-3): ");
+
+    if (choice.trim() === "1") {
+      console.log("\n✏️ Thay đổi activity Roblox");
+      console.log(`Ví dụ: ${currentPrefix}.client.ActivityProtocolLaunch`);
+      console.log(`        ${currentPrefix}.client.vnggames.ActivityProtocolLaunch`);
+      console.log(`        com.roblox.client.ActivityProtocolLaunch`);
+      console.log("\n⚠️  Lưu ý: Activity phải khớp với package name để hoạt động đúng!");
+
+      let newActivity;
+      while (true) {
+        newActivity = await Utils.ask(rl, "Nhập activity mới: ");
+        if (newActivity.trim()) {
+          break;
+        }
+        console.log("❌ Activity không được để trống!");
+      }
+
+      Utils.saveActivityConfig(newActivity.trim());
+      console.log(`✅ Đã cập nhật activity thành: ${newActivity.trim()}`);
+      console.log(`⚠️  Activity tùy chỉnh sẽ được sử dụng cho tất cả packages!`);
+
+    } else if (choice.trim() === "2") {
+      if (currentActivity) {
+        Utils.saveActivityConfig(null);
+        console.log("✅ Đã đặt lại về activity mặc định!");
+        console.log(`📋 Activity mặc định: ${currentPrefix}.client.ActivityProtocolLaunch`);
+      } else {
+        console.log("ℹ️ Đã đang sử dụng activity mặc định!");
+      }
+
+    } else if (choice.trim() === "3") {
+      // Quay lại menu chính
+      console.log("\n⏳ Đang quay lại menu chính...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await this.start();
+      return;
+    } else {
+      console.log("❌ Lựa chọn không hợp lệ!");
+    }
+
     // Quay lại menu chính
     console.log("\n⏳ Đang quay lại menu chính...");
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1108,14 +1316,15 @@ class MultiRejoinTool {
   let index = 1;
   const packageList = [];
   for (const [packageName, config] of Object.entries(configs)) {
-    let packageDisplay;
-    if (packageName === 'com.roblox.client') {
-      packageDisplay = 'Global 🌍';
-    } else if (packageName === 'com.roblox.client.vnggames') {
-      packageDisplay = 'VNG 🇻🇳';
-    } else {
-      packageDisplay = packageName;
-    }
+  let packageDisplay;
+  const prefix = Utils.loadPackagePrefixConfig();
+  if (packageName === `${prefix}.client`) {
+    packageDisplay = 'Global 🌍';
+  } else if (packageName === `${prefix}.client.vnggames`) {
+    packageDisplay = 'VNG 🇻🇳';
+  } else {
+    packageDisplay = packageName;
+  }
 
     // Ẩn username chỉ hiện 3 ký tự cuối
     const maskedUsername = Utils.maskSensitiveInfo(config.username);
@@ -1502,9 +1711,10 @@ class WebhookManager {
       // Tạo danh sách package
       const packageList = instances.map(instance => {
         let packageDisplay;
-        if (instance.packageName === 'com.roblox.client') {
+        const prefix = Utils.loadPackagePrefixConfig();
+        if (instance.packageName === `${prefix}.client`) {
           packageDisplay = 'Global 🌍';
-        } else if (instance.packageName === 'com.roblox.client.vnggames') {
+        } else if (instance.packageName === `${prefix}.client.vnggames`) {
           packageDisplay = 'VNG 🇻🇳';
         } else {
           packageDisplay = instance.packageName;
@@ -1584,9 +1794,10 @@ class ConfigEditor {
       for (const [packageName, config] of Object.entries(this.configs)) {
         try {
           let packageDisplay;
-          if (packageName === 'com.roblox.client') {
+          const prefix = Utils.loadPackagePrefixConfig();
+          if (packageName === `${prefix}.client`) {
             packageDisplay = 'Global 🌍';
-          } else if (packageName === 'com.roblox.client.vnggames') {
+          } else if (packageName === `${prefix}.client.vnggames`) {
             packageDisplay = 'VNG 🇻🇳';
           } else {
             packageDisplay = packageName;
@@ -1656,11 +1867,12 @@ class ConfigEditor {
           console.clear();
           console.log(UIRenderer.renderTitle());
           console.log(`\n✏️ Chỉnh sửa config cho ${packageName}`);
-          
+
           let packageDisplay;
-          if (packageName === 'com.roblox.client') {
+          const prefix = Utils.loadPackagePrefixConfig();
+          if (packageName === `${prefix}.client`) {
             packageDisplay = 'Global 🌍';
-          } else if (packageName === 'com.roblox.client.vnggames') {
+          } else if (packageName === `${prefix}.client.vnggames`) {
             packageDisplay = 'VNG 🇻🇳';
           } else {
             packageDisplay = packageName;
@@ -1789,9 +2001,10 @@ class ConfigEditor {
       for (const [packageName, config] of Object.entries(this.configs)) {
         try {
           let packageDisplay;
-          if (packageName === 'com.roblox.client') {
+          const prefix = Utils.loadPackagePrefixConfig();
+          if (packageName === `${prefix}.client`) {
             packageDisplay = 'Global 🌍';
-          } else if (packageName === 'com.roblox.client.vnggames') {
+          } else if (packageName === `${prefix}.client.vnggames`) {
             packageDisplay = 'VNG 🇻🇳';
           } else {
             packageDisplay = packageName;
