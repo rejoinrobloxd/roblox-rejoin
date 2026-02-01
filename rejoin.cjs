@@ -45,6 +45,7 @@ const CONFIG_PATH = path.join(__dirname, "multi_configs.json");
 const WEBHOOK_CONFIG_PATH = path.join(__dirname, "webhook_config.json");
 const PREFIX_CONFIG_PATH = path.join(__dirname, "package_prefix_config.json");
 const ACTIVITY_CONFIG_PATH = path.join(__dirname, "activity_config.json");
+const AUTOEXEC_CONFIG_PATH = path.join(__dirname, "autoexec_config.json");
 const util = require("util");
 const figlet = require("figlet");
 const _boxen = require("boxen");
@@ -560,6 +561,42 @@ Timestamp: ${systemInfo.timestamp}
     if (str.length <= 3) return str;
     return '*'.repeat(str.length - 3) + str.slice(-3);
   }
+
+  static async openEditor(rl, initialContent = "") {
+    try {
+      const tempFile = path.join(__dirname, `temp_script_${Date.now()}.txt`);
+      fs.writeFileSync(tempFile, initialContent);
+
+      execSync('command -v nano', { stdio: 'ignore' });
+
+      console.log("Opening nano editor...");
+      execSync(`nano "${tempFile}"`, { stdio: 'inherit' });
+
+      if (fs.existsSync(tempFile)) {
+        const content = fs.readFileSync(tempFile, 'utf8');
+        fs.unlinkSync(tempFile);
+        return content;
+      }
+    } catch (e) {
+      console.log("[-] Nano không khả dụng, chuyển sang chế độ nhập thủ công.");
+      console.log("[-] Nhập script của bạn (Gõ 'EXIT' ở dòng mới để kết thúc):");
+
+      let lines = [];
+      if (initialContent) {
+        console.log("--- Nội dung hiện tại ---");
+        console.log(initialContent);
+        lines = initialContent.split('\n');
+      }
+
+      while (true) {
+        const line = await Utils.ask(rl, "");
+        if (line.trim() === "EXIT") break;
+        lines.push(line);
+      }
+      return lines.join("\n");
+    }
+    return initialContent;
+  }
 }
 
 class GameLauncher {
@@ -1010,6 +1047,128 @@ class UIRenderer {
   }
 }
 
+class AutoexecManager {
+  constructor() {
+    this.EXECUTORS = {
+      "Delta": "/storage/emulated/0/Delta/Autoexecute/text.txt",
+      "Ronix": "/storage/emulated/0/RonixExploit/autoexec/text.txt",
+      "Codex": "/storage/emulated/0/Codex/Autoexec/text.txt",
+      "Arceus X": "/storage/emulated/0/Arceus X/Autoexec/text.txt",
+    };
+  }
+
+  loadConfig() {
+    if (!fs.existsSync(AUTOEXEC_CONFIG_PATH)) return null;
+    try {
+      return JSON.parse(fs.readFileSync(AUTOEXEC_CONFIG_PATH, 'utf8'));
+    } catch {
+      return null;
+    }
+  }
+
+  saveConfig(config) {
+    try {
+      fs.writeFileSync(AUTOEXEC_CONFIG_PATH, JSON.stringify(config, null, 2));
+      console.log("[+] Đã lưu cấu hình autoexec.");
+    } catch (e) {
+      console.error(`[-] Báo lỗi lưu config: ${e.message}`);
+    }
+  }
+
+  writeToExecutor(executorName, scriptContent) {
+    const pathStr = this.EXECUTORS[executorName];
+    if (!pathStr) return false;
+
+    try {
+      const dir = path.dirname(pathStr);
+      if (!fs.existsSync(dir)) {
+        try { fs.mkdirSync(dir, { recursive: true }); } catch { }
+      }
+
+      fs.writeFileSync(pathStr, scriptContent, 'utf8');
+      console.log(`[+] Đã ghi script vào ${executorName}: ${pathStr}`);
+      return true;
+    } catch (e) {
+      console.error(`[-] Lỗi khi ghi file autoexec: ${e.message}`);
+      return false;
+    }
+  }
+
+  async setup(rl) {
+    console.clear();
+    console.log(UIRenderer.renderTitle());
+    console.log("\n Cấu hình Autoexec");
+
+    const currentConfig = this.loadConfig();
+    let currentScript = "";
+    if (currentConfig) {
+      console.log(`\n Executor hiện tại: ${currentConfig.executor}`);
+      currentScript = currentConfig.script || "";
+    }
+
+    console.log("\nChọn Executor:");
+    const executors = Object.keys(this.EXECUTORS);
+    executors.forEach((ex, i) => {
+      console.log(`${i + 1}. ${ex}`);
+    });
+
+    const choice = parseInt(await Utils.ask(rl, "\nNhập số (1-4): ")) - 1;
+    if (choice < 0 || choice >= executors.length) {
+      console.log("[-] Lựa chọn không hợp lệ!");
+      return;
+    }
+
+    const selectedExecutor = executors[choice];
+
+    console.log("\nDán script của bạn dưới đây (Sử dụng Nano hoặc nhập EXIT để kết thúc):");
+    const script = await Utils.openEditor(rl, currentScript);
+
+    if (!script || !script.trim()) {
+      console.log("[-] Script trống!");
+      return;
+    }
+
+    console.log("\n--- Preview Script ---");
+    console.log(script.substring(0, 200) + (script.length > 200 ? "..." : ""));
+    console.log("----------------------");
+
+    const confirm = await Utils.ask(rl, "Lưu script này? (y/n): ");
+    if (confirm.toLowerCase() !== 'y') {
+      console.log("[-] Đã hủy.");
+      return;
+    }
+
+    const config = {
+      executor: selectedExecutor,
+      script: script.trim(),
+      path: this.EXECUTORS[selectedExecutor]
+    };
+
+    this.saveConfig(config);
+    this.writeToExecutor(selectedExecutor, script.trim());
+
+    console.log("\n[+] Setup Autoexec thành công!");
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  checkAndFix(config) {
+    if (!config || !config.path || !config.script) return;
+    try {
+      let currentContent = "";
+      if (fs.existsSync(config.path)) {
+        currentContent = fs.readFileSync(config.path, 'utf8');
+      }
+
+      if (currentContent.trim() !== config.script.trim()) {
+        console.log(`\n[Autoexec] Phát hiện sai lệch script tại ${config.executor}. Đang khôi phục...`);
+        this.writeToExecutor(config.executor, config.script);
+      }
+    } catch (e) {
+      console.error(`\n[-] Lỗi check autoexec: ${e.message}`);
+    }
+  }
+}
+
 class MultiRejoinTool {
   constructor() {
     this.instances = [];
@@ -1055,9 +1214,10 @@ class MultiRejoinTool {
       console.log(UIRenderer._applyMultiColorGradient("4. Chỉnh prefix package Roblox", goldGradient));
       console.log(UIRenderer._applyMultiColorGradient("5. Chỉnh activity Roblox", goldGradient));
       console.log(UIRenderer._applyMultiColorGradient("6. Cấu hình webhook", goldGradient));
+      console.log(UIRenderer._applyMultiColorGradient("7. Cấu hình Autoexec", goldGradient));
 
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      const choice = await Utils.ask(rl, "\nChọn option (1-6): ");
+      const choice = await Utils.ask(rl, "\nChọn option (1-7): ");
 
       try {
         if (choice.trim() === "1") {
@@ -1077,6 +1237,9 @@ class MultiRejoinTool {
           rl.close();
         } else if (choice.trim() === "6") {
           await this.setupWebhook(rl);
+          rl.close();
+        } else if (choice.trim() === "7") {
+          await this.setupAutoexec(rl);
           rl.close();
         } else {
           console.log("[-] Lựa chọn không hợp lệ!");
@@ -1233,6 +1396,15 @@ class MultiRejoinTool {
     const webhookManager = new WebhookManager();
     await webhookManager.setupWebhook(rl);
 
+
+    console.log("\n Đang quay lại menu chính...");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await this.start();
+  }
+
+  async setupAutoexec(rl) {
+    const autoexecManager = new AutoexecManager();
+    await autoexecManager.setup(rl);
 
     console.log("\n Đang quay lại menu chính...");
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1488,8 +1660,20 @@ class MultiRejoinTool {
     const webhookManager = new WebhookManager();
     const webhookConfig = Utils.loadWebhookConfig();
 
+    // Autoexec Setup
+    const autoexecManager = new AutoexecManager();
+    const autoexecConfig = autoexecManager.loadConfig();
+    let nextAutoexecCheck = Date.now() + 15 * 60 * 1000; // 15 minutes from start
+
     while (this.isRunning) {
       const now = Date.now();
+
+      // Check Autoexec (Every 15 mins)
+      if (autoexecConfig && now >= nextAutoexecCheck) {
+        autoexecManager.checkAndFix(autoexecConfig);
+        nextAutoexecCheck = now + 15 * 60 * 1000;
+      }
+
 
       for (const instance of this.instances) {
         const { config, user, statusHandler } = instance;
