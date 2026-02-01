@@ -19,17 +19,31 @@ function ensurePackages() {
 }
 ensurePackages();
 
+const TERMUX_BIN = "/data/data/com.termux/files/usr/bin";
+if (process.env.PATH && !process.env.PATH.includes(TERMUX_BIN)) {
+  process.env.PATH = `${TERMUX_BIN}:${process.env.PATH}`;
+}
+
 function ensureSystemDependencies() {
   try {
     execSync("command -v sqlite3", { stdio: "ignore" });
   } catch {
-    console.log("[-] Chưa tìm thấy sqlite3. Đang tự động cài đặt...");
-    try {
-      execSync("pkg install sqlite -y", { stdio: "inherit" });
-      console.log("[+] Đã cài đặt sqlite3 thành công!");
-    } catch (e) {
-      console.error("[-] Lỗi khi cài đặt sqlite3. Vui lòng cài thủ công bằng lệnh: pkg install sqlite");
+    const isRoot = execSync("id -u", { encoding: 'utf8' }).trim() === "0";
+
+    if (isRoot) {
+      console.warn("[-] Chưa tìm thấy sqlite3 và đang chạy dưới quyền Root.");
+      console.warn("[-] Vui lòng khởi động lại tool ở chế độ người dùng thường để tự động cài đặt.");
+      console.warn("[-] Hoặc cài thủ công bằng: pkg install sqlite");
       process.exit(1);
+    } else {
+      console.log("[-] Chưa tìm thấy sqlite3. Đang tự động cài đặt...");
+      try {
+        execSync("pkg install sqlite -y", { stdio: "inherit" });
+        console.log("[+] Đã cài đặt sqlite3 thành công!");
+      } catch (e) {
+        console.error("[-] Lỗi khi cài đặt sqlite3. Vui lòng cài thủ công bằng lệnh: pkg install sqlite");
+        process.exit(1);
+      }
     }
   }
 }
