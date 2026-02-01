@@ -584,7 +584,8 @@ Timestamp: ${systemInfo.timestamp}
       execSync('command -v nano', { stdio: 'ignore' });
 
       console.log("Opening nano editor...");
-      execSync(`nano "${tempFile}"`, { stdio: 'inherit' });
+      // Fix 'Error opening terminal: vt220' by explicitly setting TERM
+      execSync(`export TERM=xterm && nano "${tempFile}"`, { stdio: 'inherit' });
 
       if (fs.existsSync(tempFile)) {
         const content = fs.readFileSync(tempFile, 'utf8');
