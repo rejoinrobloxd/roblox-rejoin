@@ -889,6 +889,14 @@ class UIRenderer {
         verticalLayout: "fitted"
       });
 
+      const content = titleText + "\nBản quyền thuộc về The Real Dawn";
+      const rawBox = boxen(content, {
+        padding: 1,
+        borderStyle: "round",
+        align: "center",
+
+      });
+
       const rainbowColors = [
         [255, 0, 0],
         [255, 127, 0],
@@ -899,16 +907,11 @@ class UIRenderer {
         [148, 0, 211]
       ];
 
-      const coloredLines = titleText.split('\n').map(line =>
+      // 2. Phủ gradient lên toàn bộ output (bao gồm cả border và text)
+      return rawBox.split('\n').map(line =>
         this._applyMultiColorGradient(line, rainbowColors)
       ).join('\n');
 
-      return boxen(coloredLines + "\nBản quyền thuộc về The Real Dawn", {
-        padding: 1,
-        borderColor: "cyan",
-        borderStyle: "round",
-        align: "center"
-      });
     } catch (e) {
       return fallbackTitle;
     }
