@@ -19,6 +19,22 @@ function ensurePackages() {
 }
 ensurePackages();
 
+function ensureSystemDependencies() {
+  try {
+    execSync("command -v sqlite3", { stdio: "ignore" });
+  } catch {
+    console.log("[-] Chưa tìm thấy sqlite3. Đang tự động cài đặt...");
+    try {
+      execSync("pkg install sqlite -y", { stdio: "inherit" });
+      console.log("[+] Đã cài đặt sqlite3 thành công!");
+    } catch (e) {
+      console.error("[-] Lỗi khi cài đặt sqlite3. Vui lòng cài thủ công bằng lệnh: pkg install sqlite");
+      process.exit(1);
+    }
+  }
+}
+ensureSystemDependencies();
+
 const axios = require("axios");
 const readline = require("readline");
 const fs = require("fs");
