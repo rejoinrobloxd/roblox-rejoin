@@ -583,6 +583,10 @@ Timestamp: ${systemInfo.timestamp}
 
       execSync('command -v nano', { stdio: 'ignore' });
 
+      console.log("\nChuyển hướng sang Nano Editor sau 5 giây...");
+      console.log("Vui lòng chuẩn bị copy script để dán vào.");
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
       console.log("Opening nano editor...");
       // Fix 'Error opening terminal: vt220' by explicitly setting TERM
       execSync(`export TERM=xterm && nano "${tempFile}"`, { stdio: 'inherit' });
