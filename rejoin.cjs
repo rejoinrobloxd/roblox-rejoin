@@ -375,17 +375,33 @@ Timestamp: ${systemInfo.timestamp}
     const packages = {};
 
     try {
-
       const prefix = this.loadPackagePrefixConfig();
-      const result = execSync(`pm list packages | grep ${prefix}`, { encoding: 'utf8' });
-      const lines = result.split('\n').filter(line => line.includes(prefix));
+      let result = "";
+
+      try {
+        // Thử dùng su -c để đảm bảo quyền truy cập và tránh vấn đề PATH
+        result = execSync(`su -c "pm list packages"`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      } catch (e) {
+        // Fallback nếu su -c thất bại (có thể không có binary su hoặc không được cấp quyền)
+        try {
+          result = execSync(`pm list packages`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        } catch (e2) {
+          console.error(`[-] Lỗi khi quét packages: ${e2.message}`);
+          if (e2.stderr) console.error(`[-] Stderr: ${e2.stderr}`);
+          return packages;
+        }
+      }
+
+      if (!result) return packages;
+
+      const lines = result.split('\n');
+      const packagePattern = new RegExp(`package:(${prefix.replace(/\./g, '\\.')}[^\\s]*)`);
 
       lines.forEach(line => {
-        const match = line.match(new RegExp(`package:(${prefix.replace(/\./g, '\\.')}[^\\s]+)`));
+        const match = line.match(packagePattern);
         if (match) {
           const packageName = match[1];
           let displayName = packageName;
-
 
           if (packageName === `${prefix}.client`) {
             displayName = 'Roblox Quốc tế';
@@ -402,7 +418,7 @@ Timestamp: ${systemInfo.timestamp}
         }
       });
     } catch (e) {
-      console.error(`[-] Lỗi khi quét packages: ${e.message}`);
+      console.error(`[-] Lỗi nghiêm trọng khi quét packages: ${e.message}`);
     }
 
     return packages;
@@ -588,7 +604,6 @@ Timestamp: ${systemInfo.timestamp}
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       console.log("Opening nano editor...");
-      // Fix 'Error opening terminal: vt220' by explicitly setting TERM
       execSync(`export TERM=xterm && nano "${tempFile}"`, { stdio: 'inherit' });
 
       if (fs.existsSync(tempFile)) {
@@ -912,7 +927,6 @@ class UIRenderer {
         [148, 0, 211]
       ];
 
-      // 2. Phủ gradient lên toàn bộ output (bao gồm cả border và text)
       return rawBox.split('\n').map(line =>
         this._applyMultiColorGradient(line, rainbowColors)
       ).join('\n');
@@ -1183,7 +1197,12 @@ class AutoexecManager {
 
       if (currentContent.trim() !== config.script.trim()) {
         console.log(`\n[Autoexec] Phát hiện sai lệch script tại ${config.executor}. Đang khôi phục...`);
-        this.writeToExecutor(config.executor, config.script);
+        const fixed = this.writeToExecutor(config.executor, config.script);
+        if (fixed) {
+          console.log(`[Autoexec] Đã khôi phục script thành công cho ${config.executor}!`);
+        } else {
+          console.log(`[Autoexec] Khôi phục thất bại cho ${config.executor}!`);
+        }
       }
     } catch (e) {
       console.error(`\n[-] Lỗi check autoexec: ${e.message}`);
@@ -1289,6 +1308,8 @@ class MultiRejoinTool {
 
     if (Object.keys(packages).length === 0) {
       console.log("[-] Không tìm thấy package Roblox nào!");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await this.start();
       return;
     }
 
@@ -1682,15 +1703,13 @@ class MultiRejoinTool {
     const webhookManager = new WebhookManager();
     const webhookConfig = Utils.loadWebhookConfig();
 
-    // Autoexec Setup
     const autoexecManager = new AutoexecManager();
     const autoexecConfig = autoexecManager.loadConfig();
-    let nextAutoexecCheck = Date.now() + 15 * 60 * 1000; // 15 minutes from start
+    let nextAutoexecCheck = Date.now() + 15 * 60 * 1000;
 
     while (this.isRunning) {
       const now = Date.now();
 
-      // Check Autoexec (Every 15 mins)
       if (autoexecConfig && now >= nextAutoexecCheck) {
         autoexecManager.checkAndFix(autoexecConfig);
         nextAutoexecCheck = now + 15 * 60 * 1000;
