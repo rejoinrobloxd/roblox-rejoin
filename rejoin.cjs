@@ -378,28 +378,47 @@ Timestamp: ${systemInfo.timestamp}
       const prefix = this.loadPackagePrefixConfig();
       let result = "";
 
-      try {
-        // Thử dùng su -c để đảm bảo quyền truy cập và tránh vấn đề PATH
-        result = execSync(`su -c "pm list packages"`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-      } catch (e) {
-        // Fallback nếu su -c thất bại (có thể không có binary su hoặc không được cấp quyền)
+      // Danh sách các phương pháp gọi pm bền bỉ nhất trên Android/Termux
+      const methods = [
+        "unset LD_PRELOAD LD_LIBRARY_PATH; pm list packages",
+        "unset LD_PRELOAD LD_LIBRARY_PATH; cmd package list packages",
+        "unset LD_PRELOAD LD_LIBRARY_PATH; /system/bin/pm list packages",
+        "pm list packages",
+        "cmd package list packages",
+        "su -c 'unset LD_PRELOAD LD_LIBRARY_PATH; pm list packages'"
+      ];
+
+      for (const method of methods) {
         try {
-          result = execSync(`pm list packages`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-        } catch (e2) {
-          console.error(`[-] Lỗi khi quét packages: ${e2.message}`);
-          if (e2.stderr) console.error(`[-] Stderr: ${e2.stderr}`);
-          return packages;
+          result = execSync(method, {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+            shell: true
+          });
+          if (result && result.includes('package:')) break;
+        } catch (e) {
+          continue;
         }
       }
 
-      if (!result) return packages;
+      if (!result) {
+        console.error(`[-] Mọi nỗ lực quét packages bằng pm/cmd đều thất bại.`);
+        return packages;
+      }
 
       const lines = result.split('\n');
       const packagePattern = new RegExp(`package:(${prefix.replace(/\./g, '\\.')}[^\\s]*)`);
 
+      let foundAny = false;
+      let matchedCount = 0;
+
       lines.forEach(line => {
+        if (!line.includes('package:')) return;
+        foundAny = true;
+
         const match = line.match(packagePattern);
         if (match) {
+          matchedCount++;
           const packageName = match[1];
           let displayName = packageName;
 
@@ -417,6 +436,22 @@ Timestamp: ${systemInfo.timestamp}
           };
         }
       });
+
+      // Nếu tìm thấy packages nhưng không cái nào khớp prefix
+      if (foundAny && matchedCount === 0) {
+        console.log(`\x1b[33m[!] CẢNH BÁO: Tìm thấy packages hệ thống nhưng không cái nào bắt đầu bằng "${prefix}"\x1b[0m`);
+        console.log(`[!] Có vẻ bạn đang dùng Roblox mod (ví dụ: vip.xxx).`);
+        console.log(`[!] Vui lòng vào mục "4. Chỉnh prefix package" để đổi lại cho đúng.`);
+
+        // Gợi ý 3 package đầu tiên tìm được để user biết prefix là gì
+        const samples = lines
+          .filter(l => l.includes('package:'))
+          .slice(0, 3)
+          .map(l => l.replace('package:', '').trim());
+        if (samples.length > 0) {
+          console.log(`[*] Gợi ý các package tìm thấy: \x1b[32m${samples.join(', ')}\x1b[0m`);
+        }
+      }
     } catch (e) {
       console.error(`[-] Lỗi nghiêm trọng khi quét packages: ${e.message}`);
     }
